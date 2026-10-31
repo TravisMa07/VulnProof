@@ -73,6 +73,8 @@ The first implementation remains deliberately bounded. Dashboards, LLM integrati
 
 See the [MVP plan](docs/mvp.md) for the initial support matrix, validation approaches, security restrictions, milestones, acceptance criteria, benchmark methodology, dependencies, and proposed CLI stages.
 Follow the [implementation roadmap](docs/roadmap.md) for the agreed sequence of focused PRs and review checkpoints.
+The [CWE-22 feasibility experiment](docs/cwe22-feasibility.md) covers the initial
+reviewed fixture pair, static-path check, and restricted container checks.
 
 ## Current repository
 

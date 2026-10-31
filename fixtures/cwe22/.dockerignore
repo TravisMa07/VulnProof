@@ -1,0 +1,12 @@
+**
+!Dockerfile
+!requirements.lock
+!driver.py
+!vulnerable/
+!vulnerable/app.py
+!patched/
+!patched/app.py
+!data/
+!data/canary.txt
+!data/downloads/
+!data/downloads/example.txt
