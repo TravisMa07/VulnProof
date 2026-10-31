@@ -1,0 +1,21 @@
+# Local environments, downloaded interpreters, and tool caches
+.venv/
+.cache/
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+__pycache__/
+*.py[cod]
+
+# Build and test output
+dist/
+build/
+*.egg-info/
+.coverage
+htmlcov/
+
+# Local secrets and operating-system files
+.env
+.env.*
+!.env.example
+.DS_Store
