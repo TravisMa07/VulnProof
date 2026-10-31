@@ -10,7 +10,10 @@ owner's explicit merge authorization before starting the next item. Follow the
 The initial supported development runtime is CPython 3.14.10. The package declares
 Python 3.14 support only; expand it when other versions have been tested. CI runs
 on Ubuntu 24.04; local development is also verified on macOS. Fixture execution
-and Docker support will be established separately in the feasibility work.
+has its own setup and checks, separate from the default development checks.
+
+The [CWE-22 feasibility guide](docs/cwe22-feasibility.md) documents the separate
+fixture setup, CodeQL preparation, restricted execution, and expected results.
 
 Python 3.14 provides a maintained baseline within CodeQL's documented Python
 analysis support. The interpreter used by VulnProof does not need to match every
