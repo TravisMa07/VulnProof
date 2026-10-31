@@ -2,8 +2,6 @@
 
 VulnProof is a local-first security platform being developed to turn vulnerability findings into reproducible evidence. It combines static analysis with controlled dynamic testing to help teams investigate exploitability, prioritize remediation, and deliver developer-ready findings.
 
-**Status: project scaffold.** The repository currently contains documentation and directory placeholders. No application code, CLI, analysis queries, test harnesses, or CI workflows are implemented. All capabilities below describe intended functionality.
-
 ## Why VulnProof
 
 Security scanners can produce more findings than teams can manually investigate. A finding identifies a potential issue, but developers still need to understand whether attacker-controlled input can reach the relevant code, whether the behavior can be reproduced, and what evidence supports remediation.
@@ -74,14 +72,18 @@ Future onboarding of authorized applications will require additional controls fo
 The first implementation remains deliberately bounded. Dashboards, LLM integration, arbitrary repository execution, additional languages, and general request synthesis are outside v0.1. Dashboards and LLM integration are not established roadmap commitments.
 
 See the [MVP plan](docs/mvp.md) for the initial support matrix, validation approaches, security restrictions, milestones, acceptance criteria, benchmark methodology, dependencies, and proposed CLI stages.
+Follow the [implementation roadmap](docs/roadmap.md) for the agreed sequence of focused PRs and review checkpoints.
 
 ## Current repository
 
-The directories below are placeholders for planned responsibilities; their presence does not imply implemented functionality.
+Most component directories below remain placeholders for planned responsibilities; their presence does not imply implemented platform functionality.
 
 ```text
 VulnProof/
 ├── README.md
+├── CONTRIBUTING.md          # Setup, checks, and review workflow
+├── pyproject.toml          # Package and development-tool configuration
+├── uv.lock                 # Locked development dependencies
 ├── docs/                   # MVP plan and future design decisions
 ├── src/vulnproof/          # Planned engine components
 ├── schemas/                # Planned versioned artifact contracts
@@ -89,7 +91,9 @@ VulnProof/
 ├── fixtures/               # Planned vulnerable and patched fixtures
 ├── templates/              # Planned report templates
 ├── tests/                  # Planned unit, integration, security, and benchmark tests
-└── .github/workflows/      # Future CI workflows
+└── .github/workflows/      # Development checks
 ```
 
-Empty directories contain `.gitkeep` placeholders. Installation and usage instructions will be added when runnable functionality exists.
+Empty directories contain `.gitkeep` placeholders. See [CONTRIBUTING.md](CONTRIBUTING.md)
+for development installation, checks, code standards, and the commit/PR workflow.
+Application usage instructions will be added when the CLI exists.
