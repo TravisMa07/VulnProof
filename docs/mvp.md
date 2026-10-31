@@ -2,8 +2,6 @@
 
 The initial implementation of the broader [VulnProof vision](../README.md): a local-first hybrid exploitability validation engine for Python Flask applications.
 
-**Status: project scaffold.** No application code, CLI, queries, test harnesses, or CI workflows are implemented yet. Commands and capabilities described below are planned, not available.
-
 ## Purpose
 
 VulnProof will connect static findings to bounded dynamic tests and produce reproducible evidence. The goal is to help engineers distinguish confirmed vulnerabilities from findings that need further investigation, without treating unsuccessful tests as proof of safety.
@@ -130,7 +128,7 @@ Measure confirmation precision, recall within supported vulnerable fixtures, pat
 
 Python, Flask, CodeQL CLI and Python query packs, Docker, Pydantic, Typer, Jinja2, and pytest. Semgrep will generate benchmark inputs; importing existing SARIF should not require a local Semgrep installation.
 
-Exact versions and supported host configurations will be selected and pinned during M0. Verify CodeQL licensing for the intended analysis use before implementation, especially for private code.
+The initial Python and development-tool versions are pinned in the project configuration and lockfile; see [CONTRIBUTING.md](../CONTRIBUTING.md). Runtime dependencies and supported fixture-execution host configurations will be selected and pinned during the feasibility work. Verify CodeQL licensing for the intended analysis use before implementation, especially for private code.
 
 ## Planned CLI stages
 
