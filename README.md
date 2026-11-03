@@ -75,6 +75,8 @@ See the [MVP plan](docs/mvp.md) for the initial support matrix, validation appro
 Follow the [implementation roadmap](docs/roadmap.md) for the agreed sequence of focused PRs and review checkpoints.
 The [CWE-22 feasibility experiment](docs/cwe22-feasibility.md) covers the initial
 reviewed fixture pair, static-path check, and restricted container checks.
+The [evidence contracts](docs/evidence-contracts.md) describe the versioned records,
+source bindings, observation states, and assessment validation boundaries.
 
 ## Current repository
 

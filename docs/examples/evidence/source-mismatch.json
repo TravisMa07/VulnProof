@@ -1,0 +1,137 @@
+{
+  "schema_version": "1.0",
+  "finding": {
+    "id": "finding-1",
+    "scanner": {
+      "name": "Semgrep",
+      "version": "illustrative"
+    },
+    "rule_id": "example.path-traversal",
+    "original_ref": "illustrative-result-1",
+    "cwes": [
+      "CWE-22"
+    ],
+    "location": {
+      "path": "app.py",
+      "start_line": 19
+    },
+    "source": {
+      "expected_snapshot_id": "snapshot-target",
+      "observed_snapshot_id": "snapshot-target",
+      "state": "matched",
+      "reason": {
+        "code": "illustrative_binding",
+        "message": "Illustrative producer assertion; not a live tool attestation."
+      }
+    }
+  },
+  "snapshots": [
+    {
+      "id": "snapshot-target",
+      "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "commit_id": "dddddddddddddddddddddddddddddddddddddddd",
+      "dirty": false,
+      "files": [
+        {
+          "path": "app.py",
+          "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+        }
+      ]
+    },
+    {
+      "id": "snapshot-edited",
+      "fingerprint": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "commit_id": "dddddddddddddddddddddddddddddddddddddddd",
+      "dirty": true,
+      "files": [
+        {
+          "path": "app.py",
+          "sha256": "2222222222222222222222222222222222222222222222222222222222222222"
+        }
+      ]
+    }
+  ],
+  "static_evidence": [
+    {
+      "id": "static-1",
+      "finding_id": "finding-1",
+      "tool": {
+        "name": "CodeQL",
+        "version": "2.27.3",
+        "rule_pack": "codeql/python-queries@1.8.13"
+      },
+      "rule_id": "py/path-injection",
+      "cwe": "CWE-22",
+      "source": {
+        "expected_snapshot_id": "snapshot-target",
+        "observed_snapshot_id": "snapshot-target",
+        "state": "matched",
+        "reason": {
+          "code": "illustrative_binding",
+          "message": "Illustrative producer assertion; not a live tool attestation."
+        }
+      },
+      "outcome": "path_found",
+      "paths": [
+        {
+          "id": "path-1",
+          "locations": [
+            {
+              "path": "app.py",
+              "start_line": 14
+            },
+            {
+              "path": "app.py",
+              "start_line": 19
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "execution_evidence": [
+    {
+      "id": "execution-1",
+      "finding_id": "finding-1",
+      "source": {
+        "expected_snapshot_id": "snapshot-target",
+        "observed_snapshot_id": "snapshot-edited",
+        "state": "mismatched",
+        "reason": {
+          "code": "source_mismatch",
+          "message": "The tested image was associated with edited content under the same parent commit."
+        }
+      },
+      "outcome": "completed",
+      "oracle": "observed",
+      "oracle_id": "cwe22-canary",
+      "image_id": "sha256:eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+      "static_evidence_id": "static-1",
+      "static_path_id": "path-1",
+      "artifact_ids": [
+        "http-evidence"
+      ]
+    }
+  ],
+  "artifacts": [
+    {
+      "id": "http-evidence",
+      "path": "artifacts/http.json",
+      "media_type": "application/json",
+      "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "truncated": false
+    }
+  ],
+  "assessment": {
+    "classification": "inconclusive",
+    "static_evidence_id": "static-1",
+    "static_path_id": "path-1",
+    "execution_evidence_id": "execution-1",
+    "reasons": [
+      {
+        "code": "source_mismatch",
+        "message": "The positive observation concerns a different source snapshot and cannot confirm this finding."
+      }
+    ]
+  }
+}

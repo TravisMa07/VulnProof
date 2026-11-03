@@ -42,7 +42,7 @@ jobs:
       - name: Check built wheel in an isolated environment
         run: >-
           uv run --isolated --no-project --python 3.14.10 --with dist/*.whl
-          python -I -c "import vulnproof; from importlib.metadata import version; print(version('vulnproof'))"
+          python -I -c "from vulnproof.models import EvidenceBundle; print(EvidenceBundle.model_json_schema()['title'])"
 
   cwe22-feasibility:
     name: CWE-22 feasibility

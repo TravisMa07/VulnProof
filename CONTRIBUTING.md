@@ -49,7 +49,7 @@ uv run --locked ruff check .
 uv run --locked mypy
 uv run --locked pytest
 uv build
-uv run --isolated --no-project --python 3.14.10 --with dist/*.whl python -I -c "import vulnproof; from importlib.metadata import version; print(version('vulnproof'))"
+uv run --isolated --no-project --python 3.14.10 --with dist/*.whl python -I -c "from vulnproof.models import EvidenceBundle; print(EvidenceBundle.model_json_schema()['title'])"
 ```
 
 To format code while developing, run `uv run --locked ruff format .`. Review
