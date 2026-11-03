@@ -1,0 +1,86 @@
+{
+  "schema_version": "1.0",
+  "finding": {
+    "id": "finding-1",
+    "scanner": {
+      "name": "Semgrep",
+      "version": "illustrative"
+    },
+    "rule_id": "example.path-traversal",
+    "original_ref": "illustrative-result-1",
+    "cwes": [
+      "CWE-22"
+    ],
+    "location": {
+      "path": "app.py",
+      "start_line": 19
+    },
+    "source": {
+      "expected_snapshot_id": "snapshot-target",
+      "observed_snapshot_id": "snapshot-target",
+      "state": "matched",
+      "reason": {
+        "code": "illustrative_binding",
+        "message": "Illustrative producer assertion; not a live tool attestation."
+      }
+    }
+  },
+  "snapshots": [
+    {
+      "id": "snapshot-target",
+      "fingerprint": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "commit_id": "dddddddddddddddddddddddddddddddddddddddd",
+      "dirty": false,
+      "files": [
+        {
+          "path": "app.py",
+          "sha256": "1111111111111111111111111111111111111111111111111111111111111111"
+        }
+      ]
+    }
+  ],
+  "static_evidence": [
+    {
+      "id": "static-1",
+      "finding_id": "finding-1",
+      "tool": {
+        "name": "CodeQL",
+        "version": "2.27.3",
+        "rule_pack": "codeql/python-queries@1.8.13"
+      },
+      "rule_id": "py/path-injection",
+      "cwe": "CWE-22",
+      "source": {
+        "expected_snapshot_id": "snapshot-target",
+        "observed_snapshot_id": "snapshot-target",
+        "state": "matched",
+        "reason": {
+          "code": "illustrative_binding",
+          "message": "Illustrative producer assertion; not a live tool attestation."
+        }
+      },
+      "outcome": "no_path_found",
+      "paths": [],
+      "reasons": [
+        {
+          "code": "no_modeled_path",
+          "message": "The completed analysis returned no modeled path; unreachability is not established."
+        }
+      ]
+    }
+  ],
+  "execution_evidence": [],
+  "artifacts": [],
+  "assessment": {
+    "classification": "inconclusive",
+    "static_evidence_id": "static-1",
+    "static_path_id": null,
+    "execution_evidence_id": null,
+    "reasons": [
+      {
+        "code": "no_modeled_path",
+        "message": "There is no modeled path supporting a hybrid confirmation."
+      }
+    ]
+  }
+}
