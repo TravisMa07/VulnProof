@@ -12,3 +12,8 @@ def test_installed_distribution_exposes_importable_package() -> None:
     assert package.__spec__ is not None
     assert package.__spec__.name == "vulnproof"
     assert files(package).joinpath("py.typed").is_file()
+    assert any(
+        entry.name == "vulnproof" and entry.value == "vulnproof.cli:main"
+        for entry in installed.entry_points
+        if entry.group == "console_scripts"
+    )

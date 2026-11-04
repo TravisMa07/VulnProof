@@ -126,7 +126,7 @@ Measure confirmation precision, recall within supported vulnerable fixtures, pat
 
 ## Planned dependencies
 
-Python, Flask, CodeQL CLI and Python query packs, Docker, Pydantic, Typer, Jinja2, and pytest. Semgrep will generate benchmark inputs; importing existing SARIF should not require a local Semgrep installation.
+Python, Flask, CodeQL CLI and Python query packs, Docker, Pydantic, Jinja2, and pytest. The initial ingestion CLI uses Python's standard-library `argparse`. Semgrep will generate benchmark inputs; importing existing SARIF does not require a local Semgrep installation.
 
 The initial Python and development-tool versions are pinned in the project configuration and lockfile; see [CONTRIBUTING.md](../CONTRIBUTING.md). Runtime dependencies and supported fixture-execution host configurations will be selected and pinned during the feasibility work. Verify CodeQL licensing for the intended analysis use before implementation, especially for private code.
 

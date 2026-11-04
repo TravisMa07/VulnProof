@@ -40,9 +40,9 @@ jobs:
       - name: Build wheel and source distribution
         run: uv build
       - name: Check built wheel in an isolated environment
-        run: >-
-          uv run --isolated --no-project --python 3.14.10 --with dist/*.whl
-          python -I -c "from vulnproof.models import EvidenceBundle; print(EvidenceBundle.model_json_schema()['title'])"
+        run: |
+          uv run --isolated --no-project --python 3.14.10 --with dist/*.whl python -I -c "from vulnproof.models import EvidenceBundle; print(EvidenceBundle.model_json_schema()['title'])"
+          uv run --isolated --no-project --python 3.14.10 --with dist/*.whl vulnproof --help
 
   cwe22-feasibility:
     name: CWE-22 feasibility

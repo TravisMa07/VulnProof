@@ -78,6 +78,20 @@ reviewed fixture pair, static-path check, and restricted container checks.
 The [evidence contracts](docs/evidence-contracts.md) describe the versioned records,
 source bindings, observation states, and assessment validation boundaries.
 
+## Import scanner findings
+
+After the [development setup](CONTRIBUTING.md#development-environment), import a
+local Semgrep SARIF 2.1.0 report:
+
+```sh
+uv run --locked vulnproof ingest --sarif findings.sarif --output ingestion.json
+```
+
+The output retains the original report alongside normalized findings and import
+diagnostics. It does not verify source identity or assess exploitability.
+See [SARIF ingestion](docs/sarif-ingestion.md) for supported inputs, exit codes,
+limits, and examples. No scanner installation is needed to import existing reports.
+
 ## Current repository
 
 Most component directories below remain placeholders for planned responsibilities; their presence does not imply implemented platform functionality.
@@ -89,15 +103,14 @@ VulnProof/
 ├── pyproject.toml          # Package and development-tool configuration
 ├── uv.lock                 # Locked development dependencies
 ├── docs/                   # MVP plan and future design decisions
-├── src/vulnproof/          # Planned engine components
-├── schemas/                # Planned versioned artifact contracts
+├── src/vulnproof/          # CLI, ingestion, evidence contracts, and planned components
+├── schemas/                # Versioned evidence schema
 ├── codeql/queries/         # Planned initial static analysis queries
-├── fixtures/               # Planned vulnerable and patched fixtures
+├── fixtures/               # Reviewed CWE-22 pair and planned fixtures
 ├── templates/              # Planned report templates
-├── tests/                  # Planned unit, integration, security, and benchmark tests
+├── tests/                  # Automated checks and planned test categories
 └── .github/workflows/      # Development checks
 ```
 
 Empty directories contain `.gitkeep` placeholders. See [CONTRIBUTING.md](CONTRIBUTING.md)
 for development installation, checks, code standards, and the commit/PR workflow.
-Application usage instructions will be added when the CLI exists.
