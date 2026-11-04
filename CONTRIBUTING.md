@@ -36,8 +36,9 @@ The Python version is recorded in `.python-version`. Add runtime dependencies
 only when the feature using them is introduced.
 
 The initial tools are Ruff for formatting and linting, mypy for strict type
-checking, pytest for behavior tests, and Hatchling for packaging. There is no
-application CLI yet.
+checking, pytest for behavior tests, and Hatchling for packaging. The
+`vulnproof ingest` command imports existing Semgrep SARIF reports;
+see the [ingestion guide](docs/sarif-ingestion.md).
 
 ## Required checks
 
@@ -50,6 +51,7 @@ uv run --locked mypy
 uv run --locked pytest
 uv build
 uv run --isolated --no-project --python 3.14.10 --with dist/*.whl python -I -c "from vulnproof.models import EvidenceBundle; print(EvidenceBundle.model_json_schema()['title'])"
+uv run --isolated --no-project --python 3.14.10 --with dist/*.whl vulnproof --help
 ```
 
 To format code while developing, run `uv run --locked ruff format .`. Review
