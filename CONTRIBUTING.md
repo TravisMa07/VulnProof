@@ -44,6 +44,10 @@ content; see [source provenance](docs/source-provenance.md). These filesystem ch
 support POSIX macOS/Linux and do not execute application code.
 The fixture-only `analyze` command uses the separately prepared pinned CodeQL bundle;
 see [CodeQL analysis](docs/codeql-analysis.md). Default tests do not require CodeQL.
+The `correlate` command matches reviewed rule/location candidates without executing
+tools; see [static correlation](docs/static-correlation.md). Its tests require
+neither Semgrep nor CodeQL. The real CodeQL integration also demonstrates correlation
+with clearly labeled synthetic scanner input.
 
 ## Required checks
 
@@ -55,7 +59,7 @@ uv run --locked ruff check .
 uv run --locked mypy
 uv run --locked pytest
 uv build
-uv run --isolated --no-project --python 3.14.10 --with dist/*.whl python -I -c "from vulnproof.models import EvidenceBundle; from vulnproof.static.analysis import fixture_manifest; print(EvidenceBundle.model_json_schema()['title']); print(len(fixture_manifest().fixtures))"
+uv run --isolated --no-project --python 3.14.10 --with dist/*.whl python -I -c "from vulnproof.models import EvidenceBundle; from vulnproof.static.analysis import fixture_manifest; from vulnproof.correlation import policy; print(EvidenceBundle.model_json_schema()['title']); print(len(fixture_manifest().fixtures)); print(policy().rule_sha256)"
 uv run --isolated --no-project --python 3.14.10 --with dist/*.whl vulnproof --help
 ```
 
