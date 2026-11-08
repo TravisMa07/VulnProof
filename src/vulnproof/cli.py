@@ -3,6 +3,7 @@
 import argparse
 import json
 import os
+import signal
 import stat
 import sys
 import tempfile
@@ -12,6 +13,7 @@ from pathlib import Path
 from .ingest import ImportFailure, ingest_sarif
 from .ingest.sarif import MAX_INPUT_BYTES
 from .provenance import CaptureFailure, capture_source, verify_capture
+from .static import AnalysisFailure, analyze_capture
 
 
 def _read_input(path: Path) -> bytes:
@@ -58,8 +60,45 @@ def main(argv: Sequence[str] | None = None) -> int:
     verify.add_argument(
         "--capture", type=Path, required=True, help="Published output/snapshot directory"
     )
+    analyze = commands.add_parser(
+        "analyze", help="Analyze an approved fixture capture with pinned CodeQL"
+    )
+    analyze.add_argument("--capture", type=Path, required=True)
+    analyze.add_argument("--output", type=Path, required=True, help="New analysis directory")
+    analyze.add_argument(
+        "--codeql-bundle",
+        type=Path,
+        required=True,
+        help="Trusted prepared directory containing the CodeQL executable",
+    )
     args = parser.parse_args(argv)
     try:
+        if args.command == "analyze":
+
+            def terminate(signum: int, frame: object) -> None:
+                raise KeyboardInterrupt
+
+            previous = signal.signal(signal.SIGTERM, terminate)
+            try:
+                report = analyze_capture(args.capture, args.output, args.codeql_bundle)
+            finally:
+                signal.signal(signal.SIGTERM, previous)
+            for reason in report.diagnostics:
+                print(f"{reason.code}: {reason.message}", file=sys.stderr)
+            for result in report.results:
+                for reason in result.diagnostics:
+                    print(f"{reason.code}: {reason.message}", file=sys.stderr)
+            print(
+                json.dumps(
+                    {
+                        "outcome": report.outcome,
+                        "normalization": report.normalization,
+                        "results": len(report.results),
+                        "paths": sum(len(r.paths) for r in report.results),
+                    }
+                )
+            )
+            return 0 if report.outcome == "completed" and report.normalization == "complete" else 1
         if args.command == "verify-source":
             provenance = verify_capture(args.capture)
             print(json.dumps({"status": "content_verified", "snapshot": provenance.snapshot.id}))
@@ -89,9 +128,17 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 1 if partial else 0
         document = ingest_sarif(_read_input(args.sarif))
         _publish(args.output, document.model_dump_json(indent=2) + "\n")
-    except (ImportFailure, CaptureFailure) as exc:
+    except (ImportFailure, CaptureFailure, AnalysisFailure) as exc:
         print(f"{exc.code}: {exc}", file=sys.stderr)
         return 2
+    except KeyboardInterrupt:
+        if args.command != "analyze":
+            raise
+        print(
+            "analysis_interrupted: Process group stopped; retained report is failed",
+            file=sys.stderr,
+        )
+        return 130
     except FileExistsError:
         print("output_exists: Refusing to overwrite an existing output", file=sys.stderr)
         return 2
