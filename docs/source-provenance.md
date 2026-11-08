@@ -166,7 +166,9 @@ protection against later edits between verification and analysis.
 
 Public entry points are `capture_source(ingestion, root, output, expected_commit=...)`,
 `verify_capture(snapshot_directory)`, `ProvenanceDocument`, and `CaptureFailure.code`
-in `vulnproof.provenance`. Actual CodeQL use of this captured source belongs to PR 6.
+in `vulnproof.provenance`. The [CodeQL analysis stage](codeql-analysis.md) consumes
+approved fixture captures and verifies its private analysis copy without promoting
+scanner bindings.
 
 Technical references: [Python descriptor-relative file operations](https://docs.python.org/3.14/library/os.html),
 [Git tree listing](https://git-scm.com/docs/git-ls-tree), and
