@@ -2,7 +2,8 @@
 
 PR 6 runs the pinned Python path-traversal query against a verified PR 5 capture.
 It records independent CodeQL observations. Matching those observations to Semgrep
-findings belongs to PR 7; this stage creates no `StaticEvidence.finding_id`,
+findings is available through [static correlation](static-correlation.md);
+this analysis stage creates no `StaticEvidence.finding_id`,
 assessment, execution plan, or exploitability verdict.
 
 ## Preparation and use
@@ -175,9 +176,11 @@ uv run --locked python scripts/check_codeql_analysis.py
 
 Default tests use a trusted fake tool and authored SARIF; they require neither
 CodeQL nor Docker. The real check captures both approved fixture directories and
-runs this integration. Its empty synthetic ingestion deliberately avoids suggesting
-that PR 6 already performs Semgrep correlation. The vulnerable capture must have
-a complete path passing through its request input and ending at its file sink.
+runs this integration. It now supplies a clearly labeled synthetic Semgrep finding
+for the vulnerable fixture to demonstrate the separate correlation stage; it does
+not execute Semgrep or establish scanner provenance. The vulnerable capture must
+have a complete path passing through its request input and ending at its file sink,
+and correlation must retain it as a candidate with unverified scanner provenance.
 Patched observations are retained unchanged. Missing tools and incompatible pins
 fail explicitly.
 

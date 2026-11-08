@@ -115,7 +115,17 @@ uv run --locked vulnproof analyze --capture .cache/investigation-001/snapshot \
 
 Prepare the tool separately as described in [CodeQL analysis](docs/codeql-analysis.md).
 Results preserve modeled paths and diagnostics; matching them to scanner findings
-and assessing exploitability remain later stages.
+is a separate stage:
+
+```sh
+uv run --locked vulnproof correlate --capture .cache/investigation-001/snapshot \
+  --analysis .cache/analysis-001 --output .cache/correlation-001.json
+```
+
+See [static correlation](docs/static-correlation.md) for the initial fixture-specific
+rule mapping, integrity checks, and candidate semantics. Scanner source association
+remains unverified; candidates and missing paths do not establish exploitability or
+safety. Validation planning, dynamic testing, and assessments remain later stages.
 
 ## Current repository
 

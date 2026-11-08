@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 from uuid import uuid4
 
+from vulnproof.correlation import correlate, policy
 from vulnproof.ingest import ingest_sarif
 from vulnproof.provenance import capture_source
 from vulnproof.static import analyze_capture
@@ -16,8 +17,41 @@ def main() -> None:
     directory.mkdir(parents=True)
     print(f"Artifacts: {directory}", flush=True)
     for variant in ("vulnerable", "patched"):
-        # Empty synthetic import is intentional: PR 6 does not correlate scanner findings.
-        document = ingest_sarif(b'{"version":"2.1.0","runs":[]}')
+        # The scanner input is synthetic, not a Semgrep execution or provenance claim.
+        # Only the vulnerable fixture has a synthetic finding; patched query observations
+        # remain unconstrained rather than imposing an absence-of-findings gate.
+        raw: dict[str, object] = {"version": "2.1.0", "runs": []}
+        if variant == "vulnerable":
+            source = (ROOT / "fixtures/cwe22/vulnerable/app.py").read_text().splitlines()
+            sink_line = next(i for i, line in enumerate(source, 1) if "open(path," in line)
+            raw["runs"] = [
+                {
+                    "tool": {
+                        "driver": {
+                            "name": "Semgrep",
+                            "version": "synthetic",
+                            "rules": [{"id": policy().rule_id, "properties": {"tags": ["CWE-22"]}}],
+                        }
+                    },
+                    "results": [
+                        {
+                            "ruleId": policy().rule_id,
+                            "message": {"text": "Synthetic correlation acceptance input"},
+                            "locations": [
+                                {
+                                    "physicalLocation": {
+                                        "artifactLocation": {"uri": "app.py"},
+                                        "region": {"startLine": sink_line},
+                                    }
+                                }
+                            ],
+                        }
+                    ],
+                }
+            ]
+        scanner_bytes = json.dumps(raw).encode()
+        (directory / f"{variant}-synthetic.sarif").write_bytes(scanner_bytes)
+        document = ingest_sarif(scanner_bytes)
         ingestion = directory / f"{variant}-ingestion.json"
         ingestion.write_text(document.model_dump_json())
         capture = directory / f"{variant}-capture"
@@ -33,6 +67,10 @@ def main() -> None:
         )
         if report.outcome != "completed" or report.normalization != "complete":
             raise SystemExit(f"FAIL {variant}: see retained analysis report")
+        correlation = correlate(capture / "snapshot", directory / f"{variant}-analysis")
+        (directory / f"{variant}-analysis/diagnostics/correlation.json").write_text(
+            correlation.model_dump_json(indent=2)
+        )
         paths = [p.path for result in report.results for p in result.paths]
         if variant == "vulnerable":
             # Fixture-specific acceptance only, never a general engine correlation rule.
@@ -45,6 +83,11 @@ def main() -> None:
                 for p in paths
             ):
                 raise SystemExit("FAIL vulnerable: no complete request-to-open path")
+            if (
+                correlation.findings[0].status != "single_candidate"
+                or correlation.findings[0].imported.finding.source.state != "unverified"
+            ):
+                raise SystemExit("FAIL vulnerable: expected an unverified-source candidate")
         print(
             f"PASS {variant}: {len(report.results)} result(s), {len(paths)} path(s); observations retained",
             flush=True,
