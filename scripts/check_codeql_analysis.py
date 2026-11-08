@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from vulnproof.correlation import correlate, policy
 from vulnproof.ingest import ingest_sarif
+from vulnproof.planning import create_plans
 from vulnproof.provenance import capture_source
 from vulnproof.static import analyze_capture
 
@@ -71,6 +72,14 @@ def main() -> None:
         (directory / f"{variant}-analysis/diagnostics/correlation.json").write_text(
             correlation.model_dump_json(indent=2)
         )
+        planning = create_plans(
+            capture / "snapshot",
+            directory / f"{variant}-analysis",
+            directory / f"{variant}-analysis/diagnostics/correlation.json",
+        )
+        (directory / f"{variant}-analysis/diagnostics/planning.json").write_text(
+            planning.model_dump_json(indent=2)
+        )
         paths = [p.path for result in report.results for p in result.paths]
         if variant == "vulnerable":
             # Fixture-specific acceptance only, never a general engine correlation rule.
@@ -88,6 +97,14 @@ def main() -> None:
                 or correlation.findings[0].imported.finding.source.state != "unverified"
             ):
                 raise SystemExit("FAIL vulnerable: expected an unverified-source candidate")
+            if (
+                planning.findings[0].disposition != "draft"
+                or planning.findings[0].plan is None
+                or planning.findings[0].plan.execution_authorized
+            ):
+                raise SystemExit(
+                    "FAIL vulnerable: expected a draft without execution authorization"
+                )
         print(
             f"PASS {variant}: {len(report.results)} result(s), {len(paths)} path(s); observations retained",
             flush=True,

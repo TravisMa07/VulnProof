@@ -96,6 +96,8 @@ the original imported finding and its original source binding. No `StaticEvidenc
 is fabricated, no binding is promoted, and no assessment or classification is emitted.
 Future consumers must preserve these limitations rather than treating a candidate
 as a verified association or permission to execute a test.
+The [planning stage](validation-plans.md) now consumes this graph and retains unmet
+prerequisites in draft plans; ambiguous or partial analysis blocks automatic planning.
 
 ## Output and security boundaries
 
