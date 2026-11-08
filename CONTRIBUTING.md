@@ -39,6 +39,9 @@ The initial tools are Ruff for formatting and linting, mypy for strict type
 checking, pytest for behavior tests, and Hatchling for packaging. The
 `vulnproof ingest` command imports existing Semgrep SARIF reports;
 see the [ingestion guide](docs/sarif-ingestion.md).
+The `capture` and `verify-source` commands record and recheck selected source
+content; see [source provenance](docs/source-provenance.md). These filesystem checks
+support POSIX macOS/Linux and do not execute application code.
 
 ## Required checks
 

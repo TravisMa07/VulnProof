@@ -92,6 +92,20 @@ diagnostics. It does not verify source identity or assess exploitability.
 See [SARIF ingestion](docs/sarif-ingestion.md) for supported inputs, exit codes,
 limits, and examples. No scanner installation is needed to import existing reports.
 
+Capture the selected source tree for investigation, then check the stored content:
+
+```sh
+uv run --locked vulnproof capture --ingestion ingestion.json \
+  --source-root fixtures/cwe22/vulnerable --output .cache/investigation-001
+uv run --locked vulnproof verify-source --capture .cache/investigation-001/snapshot
+```
+
+The output directory must be new, its parent must exist, and it must be outside
+the selected source root. Capture records exact file hashes and available Git
+observations without claiming that the scanner used those bytes. See
+[source provenance](docs/source-provenance.md) for policy, limits, and verification
+boundaries. Application execution is not part of this workflow.
+
 ## Current repository
 
 Most component directories below remain placeholders for planned responsibilities; their presence does not imply implemented platform functionality.
@@ -103,7 +117,7 @@ VulnProof/
 ├── pyproject.toml          # Package and development-tool configuration
 ├── uv.lock                 # Locked development dependencies
 ├── docs/                   # MVP plan and future design decisions
-├── src/vulnproof/          # CLI, ingestion, evidence contracts, and planned components
+├── src/vulnproof/          # CLI, ingestion, source capture, evidence contracts, planned components
 ├── schemas/                # Versioned evidence schema
 ├── codeql/queries/         # Planned initial static analysis queries
 ├── fixtures/               # Reviewed CWE-22 pair and planned fixtures

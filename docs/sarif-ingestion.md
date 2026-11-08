@@ -77,7 +77,9 @@ membership in a current CWE catalog. Missing rule identity is rejected.
 Each supported run gets a distinct source placeholder with no content fingerprint,
 file hashes, commit ID, or dirty-state claim. Findings use an `unverified` binding.
 Reported source-control metadata stays in the original report; PR 5 must establish
-source provenance before later stages can rely on it.
+source provenance before later stages can rely on it. The separate
+[capture workflow](source-provenance.md) now records the investigation target's
+content while retaining unverified scanner associations and leaving ingestion unchanged.
 
 ## Output and reproducibility
 
