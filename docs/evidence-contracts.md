@@ -67,7 +67,9 @@ to PR 5 and the later analysis/execution integrations.
 Unknown commit, dirty state, tool version, hashes, and artifact truncation remain
 `null` where the relevant fields allow it. A file list contains known hashes; it
 does not assert that the list is a complete manifest. The snapshot fingerprint
-algorithm and immutable snapshot acquisition will be defined in PR 5.
+algorithm and capture/verification policy are defined by the
+[source provenance producer](source-provenance.md). Its complete file manifest
+does not establish what a scanner or an execution image actually used.
 
 ## Observations and assessments
 
