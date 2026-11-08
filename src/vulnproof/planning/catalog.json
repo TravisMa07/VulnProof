@@ -1,0 +1,46 @@
+{
+  "schema_version": "1.0",
+  "id": "fixture-planning-v1",
+  "bindings": [
+    {
+      "fixture_id": "cwe22-vulnerable-v1", "method": "GET", "route": "/download",
+      "input_location": "query", "input_name": "name", "download_root": "/fixture/downloads",
+      "legitimate_document": "example.txt",
+      "legitimate_document_sha256": "62527d78c70ef8f47bffc15e6c5352dd6f0a751b97f620013e52c25a138aa62f",
+      "template_id": "cwe22-file-read-v1"
+    },
+    {
+      "fixture_id": "cwe22-patched-v1", "method": "GET", "route": "/download",
+      "input_location": "query", "input_name": "name", "download_root": "/fixture/downloads",
+      "legitimate_document": "example.txt",
+      "legitimate_document_sha256": "62527d78c70ef8f47bffc15e6c5352dd6f0a751b97f620013e52c25a138aa62f",
+      "template_id": "cwe22-file-read-v1"
+    }
+  ],
+  "template": {
+    "id": "cwe22-file-read-v1", "cwe": "CWE-22",
+    "steps": [
+      {"kind": "legitimate_request", "role": "control", "input_value": "legitimate_document",
+       "positive_status": 200, "exact_body": "legitimate_document"},
+      {"kind": "prepare_canary", "directory": "/tmp/vulnproof", "fresh_nonce_bytes": 32,
+       "require_initial_absence": true, "outside_download_root": true},
+      {"kind": "parent_traversal", "role": "probe", "input_value": "runtime_parent_canary_path",
+       "positive_status": 200, "exact_body": "fresh_canary"},
+      {"kind": "absolute_path", "role": "probe", "input_value": "runtime_absolute_canary_path",
+       "positive_status": 200, "exact_body": "fresh_canary"}
+    ],
+    "control_failure": "stop_probes_no_conclusion",
+    "unsuccessful_probe": "no_safety_conclusion",
+    "response_limit_bytes": 65536, "request_timeout_seconds": 3
+  },
+  "execution": {
+    "id": "fixture-isolation-v1", "non_root": true, "read_only_root": true,
+    "network": "none", "published_ports": false, "host_mounts": false,
+    "drop_capabilities": "ALL", "no_new_privileges": true, "cpus": 1,
+    "memory_bytes": 268435456, "pids": 64, "temporary_bytes": 16777216,
+    "temporary_noexec_nosuid_nodev": true, "deadline_seconds": 60,
+    "output_limit_bytes": 1048576, "transport": "container_loopback",
+    "fresh_container": true, "cleanup_all_outcomes": true,
+    "dependency_installation": false, "repository_builds": false
+  }
+}

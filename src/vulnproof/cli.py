@@ -14,6 +14,7 @@ from .correlation import CorrelationFailure, correlate
 from .correlation.engine import MAX_DOCUMENT_BYTES
 from .ingest import ImportFailure, ingest_sarif
 from .ingest.sarif import MAX_INPUT_BYTES
+from .planning import PlanningFailure, create_plans
 from .provenance import CaptureFailure, capture_source, verify_capture
 from .static import AnalysisFailure, analyze_capture
 
@@ -77,8 +78,43 @@ def main(argv: Sequence[str] | None = None) -> int:
     correlation.add_argument("--capture", type=Path, required=True)
     correlation.add_argument("--analysis", type=Path, required=True)
     correlation.add_argument("--output", type=Path, required=True, help="New correlation JSON file")
+    planning = commands.add_parser(
+        "plan", help="Describe draft fixture tests without executing them"
+    )
+    planning.add_argument("--capture", type=Path, required=True)
+    planning.add_argument("--analysis", type=Path, required=True)
+    planning.add_argument("--correlation", type=Path, required=True)
+    planning.add_argument("--output", type=Path, required=True, help="New planning JSON file")
     args = parser.parse_args(argv)
     try:
+        if args.command == "plan":
+            destination = args.output.parent.resolve() / args.output.name
+            if (
+                any(
+                    destination.is_relative_to(root.resolve())
+                    for root in (args.capture, args.analysis)
+                )
+                or destination == args.correlation.resolve()
+            ):
+                raise PlanningFailure(
+                    "invalid_output",
+                    "Output must be outside evidence directories and differ from correlation input",
+                )
+            planning_report = create_plans(args.capture, args.analysis, args.correlation)
+            _publish(args.output, planning_report.model_dump_json(indent=2) + "\n")
+            print(
+                json.dumps(
+                    {
+                        "status": "completed",
+                        "drafts": sum(f.disposition == "draft" for f in planning_report.findings),
+                        "blocked": sum(
+                            f.disposition == "blocked" for f in planning_report.findings
+                        ),
+                        "execution_authorized": False,
+                    }
+                )
+            )
+            return 0
         if args.command == "correlate":
             # Keep publication outside retained evidence, including through parent symlinks.
             destination = args.output.parent.resolve() / args.output.name
@@ -160,7 +196,13 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 1 if partial else 0
         document = ingest_sarif(_read_input(args.sarif))
         _publish(args.output, document.model_dump_json(indent=2) + "\n")
-    except (ImportFailure, CaptureFailure, AnalysisFailure, CorrelationFailure) as exc:
+    except (
+        ImportFailure,
+        CaptureFailure,
+        AnalysisFailure,
+        CorrelationFailure,
+        PlanningFailure,
+    ) as exc:
         print(f"{exc.code}: {exc}", file=sys.stderr)
         return 2
     except KeyboardInterrupt:

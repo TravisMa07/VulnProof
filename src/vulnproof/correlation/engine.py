@@ -1,14 +1,12 @@
 """Verify retained inputs and correlate only the reviewed fixture profile."""
 
 import hashlib
-import os
-import stat
 from importlib.resources import files
 from pathlib import Path
 
+from vulnproof.artifacts import read_local
 from vulnproof.ingest import IngestionDocument
 from vulnproof.models import Artifact, Reason
-from vulnproof.models.common import relative_path
 from vulnproof.provenance import CaptureFailure, verify_capture
 from vulnproof.provenance.filesystem import open_root, scan_tree
 from vulnproof.static import AnalysisDocument, AnalysisFailure
@@ -34,35 +32,8 @@ def policy() -> CompatibilityPolicy:
     return CompatibilityPolicy(rule_sha256=hashlib.sha256(definition).hexdigest())
 
 
-def _read(root: Path, path: str, limit: int) -> bytes:
-    """Bounded descriptor-relative regular-file reads, with no symlink components."""
-    relative_path(path)
-    with open_root(root) as root_fd:
-        descriptor = os.dup(root_fd)
-        try:
-            parts = path.split("/")
-            for part in parts[:-1]:
-                child = os.open(
-                    part, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=descriptor
-                )
-                os.close(descriptor)
-                descriptor = child
-            child = os.open(
-                parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=descriptor
-            )
-            with os.fdopen(child, "rb") as stream:
-                if not stat.S_ISREG(os.fstat(stream.fileno()).st_mode):
-                    raise ValueError("artifact is not a regular file")
-                data = stream.read(limit + 1)
-            if len(data) > limit:
-                raise ValueError("artifact exceeds limit")
-            return data
-        finally:
-            os.close(descriptor)
-
-
 def _artifact(root: Path, artifact: Artifact, limit: int) -> bytes:
-    data = _read(root, artifact.path, limit)
+    data = read_local(root, artifact.path, limit)
     if artifact.sha256 != hashlib.sha256(data).hexdigest() or artifact.size_bytes != len(data):
         raise ValueError("artifact hash or size mismatch")
     return data
@@ -83,11 +54,11 @@ def correlate(capture: Path, analysis: Path) -> CorrelationDocument:
 
 def _correlate(capture: Path, analysis: Path) -> CorrelationDocument:
     provenance = verify_capture(capture)
-    ingestion_bytes = _read(capture, "ingestion.json", MAX_DOCUMENT_BYTES)
+    ingestion_bytes = read_local(capture, "ingestion.json", MAX_DOCUMENT_BYTES)
     if hashlib.sha256(ingestion_bytes).hexdigest() != provenance.ingestion_sha256:
         raise ValueError("ingestion changed")
     ingestion = IngestionDocument.model_validate_json(ingestion_bytes)
-    analysis_bytes = _read(analysis, "analysis.json", MAX_DOCUMENT_BYTES)
+    analysis_bytes = read_local(analysis, "analysis.json", MAX_DOCUMENT_BYTES)
     report = AnalysisDocument.model_validate_json(analysis_bytes)
     if report.snapshot != provenance.snapshot:
         raise CorrelationFailure("source_mismatch", "Analysis must reference the selected capture")
@@ -187,7 +158,7 @@ def _correlate(capture: Path, analysis: Path) -> CorrelationDocument:
     # Recheck the capture and report to catch ordinary changes during consumption.
     if (
         verify_capture(capture) != provenance
-        or _read(analysis, "analysis.json", MAX_DOCUMENT_BYTES) != analysis_bytes
+        or read_local(analysis, "analysis.json", MAX_DOCUMENT_BYTES) != analysis_bytes
     ):
         raise ValueError("inputs changed during correlation")
     return CorrelationDocument(
