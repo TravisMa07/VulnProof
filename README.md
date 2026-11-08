@@ -106,6 +106,17 @@ observations without claiming that the scanner used those bytes. See
 [source provenance](docs/source-provenance.md) for policy, limits, and verification
 boundaries. Application execution is not part of this workflow.
 
+Run the pinned CodeQL query against an approved fixture capture:
+
+```sh
+uv run --locked vulnproof analyze --capture .cache/investigation-001/snapshot \
+  --output .cache/analysis-001 --codeql-bundle .cache/codeql/2.27.3/codeql
+```
+
+Prepare the tool separately as described in [CodeQL analysis](docs/codeql-analysis.md).
+Results preserve modeled paths and diagnostics; matching them to scanner findings
+and assessing exploitability remain later stages.
+
 ## Current repository
 
 Most component directories below remain placeholders for planned responsibilities; their presence does not imply implemented platform functionality.

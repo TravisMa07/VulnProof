@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.0",
+  "fixtures": [
+    {
+      "id": "cwe22-vulnerable-v1",
+      "fingerprint": "0e29d490ed8a7a353644c18970ab5026b24cfa11f35e03f12f07230c42f68850",
+      "description": "Reviewed Flask download fixture with unrestricted file reads"
+    },
+    {
+      "id": "cwe22-patched-v1",
+      "fingerprint": "c0e55428f839a23f7d47b5f17b2d60949d54fd03424e320d03753dc9f53d95c8",
+      "description": "Reviewed Flask download fixture using send_from_directory"
+    }
+  ]
+}
