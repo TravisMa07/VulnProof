@@ -181,6 +181,8 @@ for the vulnerable fixture to demonstrate the separate correlation stage; it doe
 not execute Semgrep or establish scanner provenance. The vulnerable capture must
 have a complete path passing through its request input and ending at its file sink,
 and correlation must retain it as a candidate with unverified scanner provenance.
+The separate [planning stage](validation-plans.md) must produce a draft carrying
+unmet prerequisites and no execution authorization.
 Patched observations are retained unchanged. Missing tools and incompatible pins
 fail explicitly.
 

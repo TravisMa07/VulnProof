@@ -48,6 +48,9 @@ The `correlate` command matches reviewed rule/location candidates without execut
 tools; see [static correlation](docs/static-correlation.md). Its tests require
 neither Semgrep nor CodeQL. The real CodeQL integration also demonstrates correlation
 with clearly labeled synthetic scanner input.
+The `plan` command produces data-only fixture test drafts or blocked dispositions;
+see [validation plans](docs/validation-plans.md). It requires no external tools and
+does not authorize execution. The packaged planning catalog is trusted project policy.
 
 ## Required checks
 
@@ -59,7 +62,7 @@ uv run --locked ruff check .
 uv run --locked mypy
 uv run --locked pytest
 uv build
-uv run --isolated --no-project --python 3.14.10 --with dist/*.whl python -I -c "from vulnproof.models import EvidenceBundle; from vulnproof.static.analysis import fixture_manifest; from vulnproof.correlation import policy; print(EvidenceBundle.model_json_schema()['title']); print(len(fixture_manifest().fixtures)); print(policy().rule_sha256)"
+uv run --isolated --no-project --python 3.14.10 --with dist/*.whl python -I -c "from vulnproof.models import EvidenceBundle; from vulnproof.static.analysis import fixture_manifest; from vulnproof.correlation import policy; from vulnproof.planning import planning_catalog; print(EvidenceBundle.model_json_schema()['title']); print(len(fixture_manifest().fixtures)); print(policy().rule_sha256); print(planning_catalog().id)"
 uv run --isolated --no-project --python 3.14.10 --with dist/*.whl vulnproof --help
 ```
 

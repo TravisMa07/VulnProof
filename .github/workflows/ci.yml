@@ -41,7 +41,7 @@ jobs:
         run: uv build
       - name: Check built wheel in an isolated environment
         run: |
-          uv run --isolated --no-project --python 3.14.10 --with dist/*.whl python -I -c "from vulnproof.models import EvidenceBundle; from vulnproof.static.analysis import fixture_manifest; from vulnproof.correlation import policy; print(EvidenceBundle.model_json_schema()['title']); print(len(fixture_manifest().fixtures)); print(policy().rule_sha256)"
+          uv run --isolated --no-project --python 3.14.10 --with dist/*.whl python -I -c "from vulnproof.models import EvidenceBundle; from vulnproof.static.analysis import fixture_manifest; from vulnproof.correlation import policy; from vulnproof.planning import planning_catalog; print(EvidenceBundle.model_json_schema()['title']); print(len(fixture_manifest().fixtures)); print(policy().rule_sha256); print(planning_catalog().id)"
           uv run --isolated --no-project --python 3.14.10 --with dist/*.whl vulnproof --help
 
   codeql-analysis:

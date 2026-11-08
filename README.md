@@ -125,7 +125,20 @@ uv run --locked vulnproof correlate --capture .cache/investigation-001/snapshot 
 See [static correlation](docs/static-correlation.md) for the initial fixture-specific
 rule mapping, integrity checks, and candidate semantics. Scanner source association
 remains unverified; candidates and missing paths do not establish exploitability or
-safety. Validation planning, dynamic testing, and assessments remain later stages.
+safety.
+
+Describe a reviewed fixture test without executing it:
+
+```sh
+uv run --locked vulnproof plan --capture .cache/investigation-001/snapshot \
+  --analysis .cache/analysis-001 --correlation .cache/correlation-001.json \
+  --output .cache/planning-001.json
+```
+
+See [validation plans](docs/validation-plans.md) for the trusted fixture template,
+blocked cases, execution requirements, and unmet prerequisites. Drafts do not
+authorize execution or verify scanner provenance. Dynamic testing and assessments
+remain later stages.
 
 ## Current repository
 
