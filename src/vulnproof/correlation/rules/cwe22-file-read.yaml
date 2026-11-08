@@ -1,0 +1,12 @@
+rules:
+  - id: vulnproof.fixture.cwe22.file-read
+    languages: [python]
+    mode: taint
+    message: Fixture request input reaches a file-open path.
+    severity: WARNING
+    metadata:
+      cwe: ['CWE-22: Improper Limitation of a Pathname to a Restricted Directory']
+    pattern-sources:
+      - pattern: request.args.get(...)
+    pattern-sinks:
+      - pattern: open($PATH, "rb")

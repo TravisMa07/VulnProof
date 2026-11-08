@@ -10,6 +10,8 @@ import tempfile
 from collections.abc import Sequence
 from pathlib import Path
 
+from .correlation import CorrelationFailure, correlate
+from .correlation.engine import MAX_DOCUMENT_BYTES
 from .ingest import ImportFailure, ingest_sarif
 from .ingest.sarif import MAX_INPUT_BYTES
 from .provenance import CaptureFailure, capture_source, verify_capture
@@ -71,8 +73,38 @@ def main(argv: Sequence[str] | None = None) -> int:
         required=True,
         help="Trusted prepared directory containing the CodeQL executable",
     )
+    correlation = commands.add_parser("correlate", help="Link findings to candidate static paths")
+    correlation.add_argument("--capture", type=Path, required=True)
+    correlation.add_argument("--analysis", type=Path, required=True)
+    correlation.add_argument("--output", type=Path, required=True, help="New correlation JSON file")
     args = parser.parse_args(argv)
     try:
+        if args.command == "correlate":
+            # Keep publication outside retained evidence, including through parent symlinks.
+            destination = args.output.parent.resolve() / args.output.name
+            if any(
+                destination.is_relative_to(root.resolve()) for root in (args.capture, args.analysis)
+            ):
+                raise CorrelationFailure(
+                    "invalid_output", "Output must be outside input directories"
+                )
+            correlation_report = correlate(args.capture, args.analysis)
+            content = correlation_report.model_dump_json(indent=2) + "\n"
+            if len(content.encode("utf-8")) > MAX_DOCUMENT_BYTES:
+                raise CorrelationFailure("correlation_limit", "Correlation JSON exceeds 64 MiB")
+            _publish(args.output, content)
+            print(
+                json.dumps(
+                    {
+                        "status": "completed",
+                        "findings": len(correlation_report.findings),
+                        "candidate_results": sum(
+                            len(f.candidates) for f in correlation_report.findings
+                        ),
+                    }
+                )
+            )
+            return 0
         if args.command == "analyze":
 
             def terminate(signum: int, frame: object) -> None:
@@ -128,7 +160,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             return 1 if partial else 0
         document = ingest_sarif(_read_input(args.sarif))
         _publish(args.output, document.model_dump_json(indent=2) + "\n")
-    except (ImportFailure, CaptureFailure, AnalysisFailure) as exc:
+    except (ImportFailure, CaptureFailure, AnalysisFailure, CorrelationFailure) as exc:
         print(f"{exc.code}: {exc}", file=sys.stderr)
         return 2
     except KeyboardInterrupt:
