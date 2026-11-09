@@ -119,6 +119,8 @@ elif stage == "start":
     if control.get("stderr_warning"): print("Synthetic warning",file=sys.stderr)
     if control.get("driver_sleep"): time.sleep(10)
     if control.get("flood"): print("x"*(2*1024*1024)); sys.exit(0)
+    if "validation_driver" in control:
+        print(json.dumps(control["validation_driver"])); sys.exit(0)
     checks={key:True for key in ("non_root","no_new_privileges","zero_capabilities","read_only_root","root_write_denied","temporary_write","only_loopback","debug_disabled","legitimate_download")}
     if control.get("driver_bad"): checks["legitimate_download"]=False
     print(json.dumps({"schema_version":"1.0","profile":"fixture-diagnostics-v1","checks":checks}))

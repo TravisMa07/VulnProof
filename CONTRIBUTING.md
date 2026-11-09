@@ -60,6 +60,11 @@ association; see [controlled scans](docs/controlled-scans.md) for the separate p
 Semgrep environment and real Semgrep/CodeQL integration check. Default tests use fake
 scanner executables and do not download or run Semgrep.
 
+The separate `validate` command requires explicit validation authorization and approved
+validation images; see [CWE-22 validation](docs/cwe22-validation.md). Its real integration
+script uses actual Semgrep and CodeQL findings for the vulnerable workflow. Patched
+driver checks run independently without fabricated findings or assessments.
+
 ## Required checks
 
 Run the same checks locally as CI:
