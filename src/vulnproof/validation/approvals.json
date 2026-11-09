@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "profile": "fixture-cwe22-validation-v1",
+  "recipes": [
+    {
+      "fixture_id": "cwe22-vulnerable-v1",
+      "inputs": {
+        "Dockerfile": "5e446e550acdb54cccb91babb87f04036c409f7ac45142a8add764de99942e66",
+        "runner_driver.py": "32cda0e1b9c4fd18f12f28fb8e62344237f6b76871983994ef161f2abe130e56",
+        "diagnostic_driver.py": "cddd71656a8357f88353c804439e44a6189c5a840f5f024eac08662fce2bd786",
+        "app.py": "a60435f89568c7274cea8a2c81f6875bc4fabf1e5e5a0cd95fff06ce460ffaf3",
+        "requirements.lock": "879142f79df67b5ce3aa62425f1041248db8b0d9b786c3ec1a45eacc5c160c55",
+        "downloads/example.txt": "62527d78c70ef8f47bffc15e6c5352dd6f0a751b97f620013e52c25a138aa62f"
+      }
+    },
+    {
+      "fixture_id": "cwe22-patched-v1",
+      "inputs": {
+        "Dockerfile": "5e446e550acdb54cccb91babb87f04036c409f7ac45142a8add764de99942e66",
+        "runner_driver.py": "32cda0e1b9c4fd18f12f28fb8e62344237f6b76871983994ef161f2abe130e56",
+        "diagnostic_driver.py": "cddd71656a8357f88353c804439e44a6189c5a840f5f024eac08662fce2bd786",
+        "app.py": "1ae0f559e4739ab211de48b8033bc35a97707ae3ad0fe7c5bce3db65a26bb0c3",
+        "requirements.lock": "879142f79df67b5ce3aa62425f1041248db8b0d9b786c3ec1a45eacc5c160c55",
+        "downloads/example.txt": "62527d78c70ef8f47bffc15e6c5352dd6f0a751b97f620013e52c25a138aa62f"
+      }
+    }
+  ]
+}

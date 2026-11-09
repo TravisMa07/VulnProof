@@ -142,13 +142,14 @@ remain later stages.
 
 The [restricted Docker runner](docs/docker-runner.md) can now execute explicitly
 authorized fixture diagnostics and a legitimate download using separately prepared
-images. It verifies the execution policy and container cleanup. Traversal probes,
-fresh-canary validation, and vulnerability assessments remain later stages.
+images. It verifies the execution policy and container cleanup. The separate
+[CWE-22 validation command](docs/cwe22-validation.md) adds fresh-canary probes and
+JSON assessments for reviewed fixtures under explicit validation authorization.
 
 The [controlled scanner](docs/controlled-scans.md) runs pinned Semgrep against
 approved fixture bytes and verifies a separate source association. Imported findings
 remain unchanged. Real Semgrep-to-CodeQL integration is checked independently of
-Docker; dynamic confirmation remains the next part of roadmap item 10.
+Docker; its verified source association supports the separate dynamic confirmation stage.
 
 ## Current repository
 

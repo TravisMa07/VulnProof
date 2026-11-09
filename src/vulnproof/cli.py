@@ -19,6 +19,7 @@ from .provenance import CaptureFailure, capture_source, verify_capture
 from .runner import RunnerFailure, run_diagnostics
 from .scanning import ScanFailure, scan_fixture, verify_scan
 from .static import AnalysisFailure, analyze_capture
+from .validation import validate
 
 
 def _read_input(path: Path) -> bytes:
@@ -117,8 +118,58 @@ def main(argv: Sequence[str] | None = None) -> int:
     verify_scan_parser.add_argument(
         "--output", type=Path, required=True, help="New association JSON file"
     )
+    validation = commands.add_parser(
+        "validate", help="Authorize reviewed CWE-22 fixture validation"
+    )
+    for argument in (
+        "capture",
+        "analysis",
+        "correlation",
+        "plan",
+        "preparation",
+        "output",
+        "docker-socket",
+    ):
+        validation.add_argument("--" + argument, type=Path, required=True)
+    validation.add_argument(
+        "--scan", type=Path, help="Optional controlled scan; required for confirmation"
+    )
+    validation.add_argument("--finding-id", required=True)
+    validation.add_argument(
+        "--path-id", help="Required when the unique candidate has multiple paths"
+    )
+    validation.add_argument("--authorize-validation", action="store_true")
     args = parser.parse_args(argv)
     try:
+        if args.command == "validate":
+
+            def stop_validation(signum: int, frame: object) -> None:
+                raise KeyboardInterrupt
+
+            previous = signal.signal(signal.SIGTERM, stop_validation)
+            try:
+                bundle = validate(
+                    capture=args.capture,
+                    analysis=args.analysis,
+                    correlation=args.correlation,
+                    plan=args.plan,
+                    preparation=args.preparation,
+                    finding_id=args.finding_id,
+                    socket=args.docker_socket,
+                    output=args.output,
+                    authorize_validation=args.authorize_validation,
+                    scan=args.scan,
+                    path_id=args.path_id,
+                )
+            finally:
+                signal.signal(signal.SIGTERM, previous)
+            assert bundle.assessment is not None
+            print(
+                json.dumps(
+                    {"classification": bundle.assessment.classification, "result": "result.json"}
+                )
+            )
+            return 1 if bundle.assessment.classification == "failed" else 0
         if args.command == "scan-fixture":
 
             def stop_scan(signum: int, frame: object) -> None:
@@ -315,6 +366,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"{exc.code}: {exc}", file=sys.stderr)
         return 2
     except KeyboardInterrupt:
+        if args.command == "validate":
+            print(
+                "validation_interrupted: Cleanup attempted; retain attempt and reservation for recovery",
+                file=sys.stderr,
+            )
+            return 130
         if args.command == "scan-fixture":
             print(
                 "scan_interrupted: Scanner stopped; see retained failed receipt where available",
