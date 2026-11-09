@@ -111,6 +111,8 @@ The input values in the template are fixed symbolic recipes, not interpolated SA
 text. Runtime filename generation, nonce encoding, URL encoding, canary creation,
 HTTP dispatch, and oracle evaluation belong to subsequent runner/validation work.
 This PR does not modify the PR 2 driver or reuse its baked-in canary as fresh evidence.
+The [PR 9 runner](docker-runner.md) implements a separate diagnostic profile;
+it does not execute these canary/probe steps or satisfy the runtime-oracle prerequisite.
 The patched fixture is admitted for planning, but a missing candidate never causes
 the planner to invent one or produce a benchmark-only plan. Benchmark scheduling
 is a separate concern.
