@@ -93,7 +93,9 @@ jobs:
           uv python install
           uv sync --locked
       - name: Prepare reviewed diagnostic images
-        run: uv run --locked python scripts/prepare_runner_images.py --docker-socket /var/run/docker.sock --output .cache/runner-preparation
+        run: |
+          mkdir -p .cache
+          uv run --locked python scripts/prepare_runner_images.py --docker-socket /var/run/docker.sock --output .cache/runner-preparation
       - name: Verify real runner restrictions and cleanup
         run: uv run --locked pytest tests/integration/test_runner_docker.py --run-runner-docker --runner-docker-socket /var/run/docker.sock --runner-prepared-images .cache/runner-preparation/prepared-images.json
       - name: Retain bounded runner diagnostics

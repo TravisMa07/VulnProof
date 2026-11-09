@@ -16,6 +16,7 @@ can help identify a local endpoint; VulnProof does not inherit that context.
 From the development checkout:
 
 ```sh
+mkdir -p .cache
 uv run --locked python scripts/prepare_runner_images.py \
   --docker-socket "$HOME/.docker/run/docker.sock" \
   --output .cache/prepared-runner-001
