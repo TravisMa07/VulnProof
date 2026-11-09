@@ -30,7 +30,7 @@ exclude = ["**/.gitkeep"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "/src", "/tests", "/scripts", "/fixtures/cwe22", "/docs", "/schemas",
+    "/src", "/tests", "/scripts", "/fixtures/cwe22", "/fixtures/runner", "/docs", "/schemas",
     "/pyproject.toml", "/.python-version", "/README.md", "/CONTRIBUTING.md", "/uv.lock",
 ]
 
@@ -44,7 +44,7 @@ select = ["E4", "E7", "E9", "F", "I", "UP", "B"]
 [tool.mypy]
 python_version = "3.14"
 strict = true
-files = ["src", "tests", "scripts", "fixtures/cwe22"]
+files = ["src", "tests", "scripts", "fixtures"]
 explicit_package_bases = true
 mypy_path = ["src", "."]
 plugins = ["pydantic.mypy"]
@@ -58,3 +58,4 @@ warn_required_dynamic_aliases = true
 testpaths = ["tests"]
 pythonpath = ["."]
 addopts = ["--import-mode=importlib", "--strict-config", "--strict-markers"]
+markers = ["runner_docker: explicit integration checks requiring approved Docker images"]

@@ -140,6 +140,11 @@ blocked cases, execution requirements, and unmet prerequisites. Drafts do not
 authorize execution or verify scanner provenance. Dynamic testing and assessments
 remain later stages.
 
+The [restricted Docker runner](docs/docker-runner.md) can now execute explicitly
+authorized fixture diagnostics and a legitimate download using separately prepared
+images. It verifies the execution policy and container cleanup. Traversal probes,
+fresh-canary validation, and vulnerability assessments remain later stages.
+
 ## Current repository
 
 Most component directories below remain placeholders for planned responsibilities; their presence does not imply implemented platform functionality.

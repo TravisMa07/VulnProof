@@ -41,7 +41,7 @@ jobs:
         run: uv build
       - name: Check built wheel in an isolated environment
         run: |
-          uv run --isolated --no-project --python 3.14.10 --with dist/*.whl python -I -c "from vulnproof.models import EvidenceBundle; from vulnproof.static.analysis import fixture_manifest; from vulnproof.correlation import policy; from vulnproof.planning import planning_catalog; print(EvidenceBundle.model_json_schema()['title']); print(len(fixture_manifest().fixtures)); print(policy().rule_sha256); print(planning_catalog().id)"
+          uv run --isolated --no-project --python 3.14.10 --with dist/*.whl python -I -c "from vulnproof.models import EvidenceBundle; from vulnproof.static.analysis import fixture_manifest; from vulnproof.correlation import policy; from vulnproof.planning import planning_catalog; from vulnproof.runner import runner_approval; print(EvidenceBundle.model_json_schema()['title']); print(len(fixture_manifest().fixtures)); print(policy().rule_sha256); print(planning_catalog().id); print(runner_approval().profile)"
           uv run --isolated --no-project --python 3.14.10 --with dist/*.whl vulnproof --help
 
   codeql-analysis:
@@ -71,6 +71,42 @@ jobs:
         with:
           name: codeql-analysis-diagnostics
           path: .cache/analysis-check/*/*-analysis/diagnostics/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 3
+
+  docker-runner:
+    name: Docker runner integration
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.6"
+          enable-cache: false
+      - name: Install locked development tools
+        run: |
+          uv python install
+          uv sync --locked
+      - name: Prepare reviewed diagnostic images
+        run: |
+          mkdir -p .cache
+          uv run --locked python scripts/prepare_runner_images.py --docker-socket /var/run/docker.sock --output .cache/runner-preparation
+      - name: Verify real runner restrictions and cleanup
+        run: uv run --locked pytest tests/integration/test_runner_docker.py --run-runner-docker --runner-docker-socket /var/run/docker.sock --runner-prepared-images .cache/runner-preparation/prepared-images.json
+      - name: Retain bounded runner diagnostics
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: runner-diagnostics
+          path: |
+            .cache/runner-check/
+            .cache/runner-preparation/diagnostics/
+            .cache/runner-preparation/prepared-images.json
           include-hidden-files: true
           if-no-files-found: warn
           retention-days: 3
