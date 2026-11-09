@@ -1,0 +1,6 @@
+{
+  "schema_version": "1.0",
+  "id": "fixture-semgrep-v1",
+  "version": "1.184.0",
+  "lock_sha256": "2ea0b64939fee6af2662b299cb938cd96018ecd4c27ac83171e1dc19933380a7"
+}

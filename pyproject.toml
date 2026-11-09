@@ -30,7 +30,7 @@ exclude = ["**/.gitkeep"]
 
 [tool.hatch.build.targets.sdist]
 include = [
-    "/src", "/tests", "/scripts", "/fixtures/cwe22", "/fixtures/runner", "/docs", "/schemas",
+    "/src", "/tests", "/scripts", "/tools/semgrep", "/fixtures/cwe22", "/fixtures/runner", "/docs", "/schemas",
     "/pyproject.toml", "/.python-version", "/README.md", "/CONTRIBUTING.md", "/uv.lock",
 ]
 

@@ -75,6 +75,40 @@ jobs:
           if-no-files-found: warn
           retention-days: 3
 
+  controlled-scan:
+    name: Controlled scanner integration
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.6"
+          enable-cache: false
+      - name: Prepare pinned tools
+        run: |
+          uv python install
+          uv sync --locked
+          uv run --locked python scripts/prepare_semgrep.py
+          uv run --locked python scripts/prepare_codeql.py
+      - name: Verify real scanner and static path association
+        run: uv run --locked python scripts/check_controlled_scan.py
+      - name: Retain bounded diagnostic evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: controlled-scan-diagnostics
+          path: |
+            .cache/controlled-scan-check/*/*-scan/diagnostics/
+            .cache/controlled-scan-check/*/*-scan/scan.json
+            .cache/controlled-scan-check/*/*-analysis/diagnostics/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 3
+
   docker-runner:
     name: Docker runner integration
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository

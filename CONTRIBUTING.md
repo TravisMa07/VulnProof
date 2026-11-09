@@ -55,6 +55,10 @@ The `check-runner` command executes authorized fixture diagnostics; see
 [Docker runner](docs/docker-runner.md) for separate image preparation, the explicit
 Unix socket, isolation checks, and opt-in real-container tests. Default tests use
 a fake executable and require no daemon. New fixture drivers are included in mypy.
+The `scan-fixture` and `verify-scan` commands establish controlled scanner-to-source
+association; see [controlled scans](docs/controlled-scans.md) for the separate pinned
+Semgrep environment and real Semgrep/CodeQL integration check. Default tests use fake
+scanner executables and do not download or run Semgrep.
 
 ## Required checks
 

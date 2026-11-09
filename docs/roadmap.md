@@ -16,14 +16,15 @@ Split an item if it becomes too large to review; do not combine unrelated items.
 | 7. Static correlation | Compatible finding/path matches with ambiguity and identity mismatches preserved. |
 | 8. Validation plans | Inspectable data-only plans from trusted manifests and templates; no application execution. |
 | 9. Docker runner | Approved fixture execution, enforced limits and isolation, bounded output, and cleanup. |
-| 10. CWE-22 validation | Canary oracle, controls, evidence correlation, and the first complete finding-to-result workflow. |
+| 10a. Controlled scanner provenance | Real pinned Semgrep scans of reviewed fixture bytes, verified source associations, and real CodeQL correlation acceptance. |
+| 10b. CWE-22 validation | Fresh canary oracle, controls, evidence correlation, and the first complete finding-to-result workflow after 10a review and merge. |
 | 11. Reports | Versioned JSON and self-contained escaped HTML with evidence, reasons, and limitations. |
 | 12. CWE-22 benchmark | Four vulnerable/patched pairs, unsupported/failure cases, three-run repeatability, and hardening. |
 | 13. CWE-78 static support | Reviewed fixtures, sink models, mappings, and plans using the existing execution boundary. |
 | 14. CWE-78 validation | Bounded marker oracle, controls, and four-pair benchmark under the same acceptance gates. |
 | 15. v0.1 readiness | Offline runs after preparation, reproducibility, platform/usage documentation, and combined results. |
 
-PR 10 is the first end-to-end checkpoint. Complete and harden CWE-22 through PR 12
+PR 10b is the first end-to-end checkpoint. Complete and harden CWE-22 through PR 12
 before adding CWE-78. Detailed interfaces are settled during each item's design
 discussion, not assumed from this roadmap.
 

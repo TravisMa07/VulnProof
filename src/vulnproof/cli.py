@@ -17,6 +17,7 @@ from .ingest.sarif import MAX_INPUT_BYTES
 from .planning import PlanningFailure, create_plans
 from .provenance import CaptureFailure, capture_source, verify_capture
 from .runner import RunnerFailure, run_diagnostics
+from .scanning import ScanFailure, scan_fixture, verify_scan
 from .static import AnalysisFailure, analyze_capture
 
 
@@ -105,8 +106,60 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         help="Authorize only the reviewed fixture diagnostic operation",
     )
+    scan = commands.add_parser("scan-fixture", help="Run pinned Semgrep on reviewed fixture bytes")
+    scan.add_argument("--source-root", type=Path, required=True)
+    scan.add_argument("--semgrep-environment", type=Path, required=True)
+    scan.add_argument("--output", type=Path, required=True, help="New controlled-scan directory")
+    verify_scan_parser = commands.add_parser(
+        "verify-scan", help="Recheck scan evidence and derive matched finding records"
+    )
+    verify_scan_parser.add_argument("--scan", type=Path, required=True)
+    verify_scan_parser.add_argument(
+        "--output", type=Path, required=True, help="New association JSON file"
+    )
     args = parser.parse_args(argv)
     try:
+        if args.command == "scan-fixture":
+
+            def stop_scan(signum: int, frame: object) -> None:
+                raise KeyboardInterrupt
+
+            previous = signal.signal(signal.SIGTERM, stop_scan)
+            try:
+                receipt = scan_fixture(args.source_root, args.output, args.semgrep_environment)
+            finally:
+                signal.signal(signal.SIGTERM, previous)
+            print(
+                json.dumps(
+                    {
+                        "outcome": receipt.outcome,
+                        "fixture": receipt.fixture_id,
+                        "capture": "capture/snapshot" if receipt.snapshot else None,
+                    }
+                )
+            )
+            return 0 if receipt.outcome == "completed" else 1
+        if args.command == "verify-scan":
+            destination = args.output.parent.resolve() / args.output.name
+            if destination.is_relative_to(args.scan.resolve()):
+                raise ScanFailure(
+                    "invalid_output", "Association output must be outside the retained scan"
+                )
+            associations = verify_scan(args.scan)
+            content = associations.model_dump_json(indent=2) + "\n"
+            if len(content.encode("utf-8")) > MAX_DOCUMENT_BYTES:
+                raise ScanFailure("association_limit", "Association output exceeds 64 MiB")
+            _publish(args.output, content)
+            print(
+                json.dumps(
+                    {
+                        "status": "source_associated",
+                        "findings": len(associations.findings),
+                        "snapshot": associations.snapshot.id,
+                    }
+                )
+            )
+            return 0
         if args.command == "check-runner":
 
             def stop_runner(signum: int, frame: object) -> None:
@@ -257,10 +310,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         CorrelationFailure,
         PlanningFailure,
         RunnerFailure,
+        ScanFailure,
     ) as exc:
         print(f"{exc.code}: {exc}", file=sys.stderr)
         return 2
     except KeyboardInterrupt:
+        if args.command == "scan-fixture":
+            print(
+                "scan_interrupted: Scanner stopped; see retained failed receipt where available",
+                file=sys.stderr,
+            )
+            return 130
         if args.command == "check-runner":
             print(
                 "runner_interrupted: Cleanup attempted; see attempt report and reservation",

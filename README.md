@@ -145,6 +145,11 @@ authorized fixture diagnostics and a legitimate download using separately prepar
 images. It verifies the execution policy and container cleanup. Traversal probes,
 fresh-canary validation, and vulnerability assessments remain later stages.
 
+The [controlled scanner](docs/controlled-scans.md) runs pinned Semgrep against
+approved fixture bytes and verifies a separate source association. Imported findings
+remain unchanged. Real Semgrep-to-CodeQL integration is checked independently of
+Docker; dynamic confirmation remains the next part of roadmap item 10.
+
 ## Current repository
 
 Most component directories below remain placeholders for planned responsibilities; their presence does not imply implemented platform functionality.
@@ -155,6 +160,7 @@ VulnProof/
 ├── CONTRIBUTING.md          # Setup, checks, and review workflow
 ├── pyproject.toml          # Package and development-tool configuration
 ├── uv.lock                 # Locked development dependencies
+├── tools/semgrep/          # Separate pinned scanner tool environment
 ├── docs/                   # MVP plan and future design decisions
 ├── src/vulnproof/          # CLI, ingestion, source capture, evidence contracts, planned components
 ├── schemas/                # Versioned evidence schema
