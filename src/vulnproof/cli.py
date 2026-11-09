@@ -16,6 +16,7 @@ from .ingest import ImportFailure, ingest_sarif
 from .ingest.sarif import MAX_INPUT_BYTES
 from .planning import PlanningFailure, create_plans
 from .provenance import CaptureFailure, capture_source, verify_capture
+from .runner import RunnerFailure, run_diagnostics
 from .static import AnalysisFailure, analyze_capture
 
 
@@ -85,8 +86,61 @@ def main(argv: Sequence[str] | None = None) -> int:
     planning.add_argument("--analysis", type=Path, required=True)
     planning.add_argument("--correlation", type=Path, required=True)
     planning.add_argument("--output", type=Path, required=True, help="New planning JSON file")
+    runner = commands.add_parser(
+        "check-runner", help="Run authorized fixture diagnostics, not vulnerability probes"
+    )
+    for name in (
+        "capture",
+        "analysis",
+        "correlation",
+        "plan",
+        "prepared-images",
+        "docker-socket",
+        "output",
+    ):
+        runner.add_argument("--" + name, type=Path, required=True)
+    runner.add_argument("--finding-id", required=True)
+    runner.add_argument(
+        "--authorize-execution",
+        action="store_true",
+        help="Authorize only the reviewed fixture diagnostic operation",
+    )
     args = parser.parse_args(argv)
     try:
+        if args.command == "check-runner":
+
+            def stop_runner(signum: int, frame: object) -> None:
+                raise KeyboardInterrupt
+
+            previous = signal.signal(signal.SIGTERM, stop_runner)
+            try:
+                attempt = run_diagnostics(
+                    capture=args.capture,
+                    analysis=args.analysis,
+                    correlation=args.correlation,
+                    plan=args.plan,
+                    preparation=args.prepared_images,
+                    finding_id=args.finding_id,
+                    socket=args.docker_socket,
+                    output=args.output,
+                    authorize_execution=args.authorize_execution,
+                )
+            finally:
+                signal.signal(signal.SIGTERM, previous)
+            print(
+                json.dumps(
+                    {
+                        "execution": attempt.execution,
+                        "cleanup": attempt.cleanup,
+                        "policy_verified": attempt.policy_verified,
+                    }
+                )
+            )
+            return (
+                0
+                if attempt.execution == "completed" and attempt.cleanup == "verified_absent"
+                else 1
+            )
         if args.command == "plan":
             destination = args.output.parent.resolve() / args.output.name
             if (
@@ -202,10 +256,17 @@ def main(argv: Sequence[str] | None = None) -> int:
         AnalysisFailure,
         CorrelationFailure,
         PlanningFailure,
+        RunnerFailure,
     ) as exc:
         print(f"{exc.code}: {exc}", file=sys.stderr)
         return 2
     except KeyboardInterrupt:
+        if args.command == "check-runner":
+            print(
+                "runner_interrupted: Cleanup attempted; see attempt report and reservation",
+                file=sys.stderr,
+            )
+            return 130
         if args.command != "analyze":
             raise
         print(
