@@ -21,7 +21,7 @@ from .sarif import normalize_sarif
 
 class ScanInput(BaseModel):
     schema_version: Literal["1.0"]
-    profile: Literal["repository-scan-v1"]
+    profile: Literal["repository-scan-v1", "repository-import-v1"]
     outcome: Literal["completed", "partial", "no_applicable_targets"]
     component: str | None
     files: tuple[CapturedFile, ...] = Field(max_length=MAX_FILES)

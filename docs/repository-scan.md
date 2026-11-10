@@ -35,4 +35,27 @@ uv run --locked vulnproof investigate --scan /path/to/new-scan \
 
 The command checks the captured files against the scan receipt, copies them into a private working directory, and extracts one Python database with build mode set to none. It runs the bundled Python path-injection query once and records repository-relative path nodes in `investigation.json`. The report includes the component, source fingerprint, scan receipt hash, tool and query identity, commands, diagnostics, and raw SARIF reference. Component captures limit analysis to that subtree. Local artifact hashes establish consistency with the supplied receipt and assume the operator trusts its origin.
 
-Exit 0 means analysis and normalization completed, including when the query returned zero paths. Exit 1 covers partial normalization, an unsupported snapshot without Python files, or a failed attempt. Exit 2 indicates rejected input or an output setup error. See the report and diagnostic logs for the reason. A modeled path records static evidence. Linking it to an individual scanner finding belongs to C2.
+Exit 0 means analysis and normalization completed, including when the query returned zero paths. Exit 1 covers partial normalization, an unsupported snapshot without Python files, or a failed attempt. Exit 2 indicates rejected input or an output setup error. See the report and diagnostic logs for the reason. A modeled path records static evidence.
+
+## Connect findings to CodeQL paths
+
+For an existing SARIF file use the following preparation command. It captures the current checkout, inventories the report against that copy, and records an unverified scanner revision. Use the same optional component directory and capture limits as for a local scan.
+
+```sh
+vulnproof prepare-repository --repo /path/to/project --sarif findings.sarif --output evidence
+```
+
+An existing intake inventory can be supplied with `--inventory inventory.json` in place of `--sarif`. Preparation reuses its component and embedded SARIF and verifies its recorded file observations against the new capture.
+
+For a local Semgrep scan use its existing output directory as `evidence`. Both workflows use these commands. An existing investigation for the same receipt can be reused.
+
+```sh
+vulnproof investigate --scan evidence --codeql-bundle .cache/codeql/2.27.3/codeql --output analysis
+vulnproof correlate-repository --scan evidence --investigation analysis --output correlation.json
+```
+
+The correlator rechecks captured files, regenerates the inventory from raw SARIF and checks the investigation against its receipt and raw CodeQL evidence. It writes one entry per input occurrence, including duplicates. Candidate result and path IDs refer to the nodes in the investigation report. Exit 0 indicates that correlation produced a report. Check its counts and analysis completeness to interpret coverage. Inconsistent evidence produces exit 2.
+
+The first shipped mapping covers the Semgrep OSS repository request-file-read rule and CodeQL Python path injection. It compares the reported region with the first argument of a direct Python open call and requires the CodeQL sink to identify that argument's full span. A sink reported with coarser coordinates can therefore have no candidate. Several compatible sinks, or a coarse scanner region spanning multiple plausible calls, yield an ambiguous result. Several paths to one sink are retained together. The mapping describes the path passed to open and makes no claim about its access mode.
+
+Unknown mappings, missing locations, unsupported analysis and analysis failures have explicit outcomes. A completed query with no compatible path yields no candidate. Partial analyses can omit candidates. Imported producer and rule identities are declarations from the report. Captured source hashes rely on trusted local evidence storage.

@@ -13,6 +13,7 @@ from pathlib import Path
 
 from .correlation import CorrelationFailure, correlate
 from .correlation.engine import MAX_DOCUMENT_BYTES
+from .correlation.repository import correlate_repository, prepare_import, prepare_inventory
 from .ingest import ImportFailure, ingest_sarif
 from .ingest.sarif import MAX_INPUT_BYTES
 from .intake import inventory
@@ -75,6 +76,22 @@ def main(argv: Sequence[str] | None = None) -> int:
     verify.add_argument(
         "--capture", type=Path, required=True, help="Published output/snapshot directory"
     )
+    prepare = commands.add_parser(
+        "prepare-repository", help="Capture checkout and inventory an existing SARIF report"
+    )
+    prepare.add_argument("--component")
+    import_source = prepare.add_mutually_exclusive_group(required=True)
+    import_source.add_argument("--sarif", type=Path)
+    import_source.add_argument(
+        "--inventory", type=Path, help="Existing intake inventory with embedded SARIF"
+    )
+    for flag in ("repo", "output"):
+        prepare.add_argument("--" + flag, type=Path, required=True)
+    links = commands.add_parser(
+        "correlate-repository", help="Link repository findings to retained CodeQL paths"
+    )
+    for flag in ("scan", "investigation", "output"):
+        links.add_argument("--" + flag, type=Path, required=True)
     investigation = commands.add_parser(
         "investigate", help="Trace modeled paths in a repository scan snapshot"
     )
@@ -171,6 +188,23 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     try:
+        if args.command == "prepare-repository":
+            if args.inventory:
+                prepare_inventory(args.repo, args.component, args.inventory, args.output)
+            else:
+                prepare_import(args.repo, args.component, _read_input(args.sarif), args.output)
+            return 0
+        if args.command == "correlate-repository":
+            if any(
+                args.output.resolve().is_relative_to(root.resolve())
+                for root in (args.scan, args.investigation)
+            ):
+                raise CorrelationFailure(
+                    "invalid_output", "Choose a new output file outside both evidence directories"
+                )
+            content = correlate_repository(args.scan, args.investigation)
+            _publish(args.output, content)
+            return 0
         if args.command == "scan":
             outcome = scan_repository(
                 args.repo, args.component, args.output, args.semgrep_environment
