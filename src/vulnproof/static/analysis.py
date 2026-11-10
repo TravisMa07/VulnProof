@@ -74,6 +74,99 @@ def _publish_report(path: Path, report: AnalysisDocument) -> None:
         pending.unlink(missing_ok=True)
 
 
+def check_bundle(
+    bundle: Path, output: Path, env: dict[str, str], records: list[CommandRecord]
+) -> ToolIdentity:
+    executable = bundle / "codeql"
+    query = bundle / QUERY_RELATIVE
+    if not executable.is_file():
+        raise AnalysisFailure(
+            "codeql_missing",
+            "Prepare CodeQL with scripts/prepare_codeql.py and pass its codeql directory",
+        )
+    version = json.loads(
+        run_command(
+            [str(executable), "version", "--format=json"],
+            stage="version",
+            root=output,
+            env=env,
+            timeout=30,
+            records=records,
+        )
+    )
+    if not isinstance(version, dict) or version.get("version") != CODEQL_VERSION:
+        raise AnalysisFailure("codeql_version", "Expected prepared CodeQL 2.27.3")
+    if (
+        not query.is_file()
+        or hashlib.sha256(query.read_bytes()).hexdigest() != QUERY_SHA256
+        or re.search(
+            r"^version:\s*1\.8\.13\s*$",
+            (query.parents[2] / "qlpack.yml").read_text(),
+            re.MULTILINE,
+        )
+        is None
+    ):
+        raise AnalysisFailure(
+            "query_mismatch", "Expected the pinned bundled official Python query and pack"
+        )
+    tool = ToolIdentity(
+        name="CodeQL", version=CODEQL_VERSION, rule_pack="codeql/python-queries@" + PACK_VERSION
+    )
+    return tool
+
+
+def query_source(
+    bundle: Path, output: Path, env: dict[str, str], records: list[CommandRecord]
+) -> Path:
+    executable = bundle / "codeql"
+    query = bundle / QUERY_RELATIVE
+    work = output / "work"
+    source = work / "source"
+    sarif = output / "diagnostics/raw.sarif"
+    database = work / "database"
+    run_command(
+        [
+            str(executable),
+            "database",
+            "create",
+            str(database),
+            "--language=python",
+            "--build-mode=none",
+            f"--source-root={source}",
+            "--threads=2",
+            "--ram=2048",
+        ],
+        stage="extract",
+        root=output,
+        env=env,
+        timeout=180,
+        records=records,
+    )
+    run_command(
+        [
+            str(executable),
+            "database",
+            "analyze",
+            str(database),
+            str(query),
+            "--format=sarifv2.1.0",
+            "--max-paths=4",
+            f"--output={sarif}",
+            "--threads=2",
+            "--ram=2048",
+        ],
+        stage="query",
+        root=output,
+        env=env,
+        timeout=300,
+        records=records,
+        sarif=sarif,
+    )
+    if not sarif.is_file() or sarif.stat().st_size > MAX_SARIF_BYTES:
+        raise AnalysisFailure("sarif_limit", "CodeQL SARIF is absent or exceeds the output limit")
+    return sarif
+
+
 def analyze_capture(capture: Path, output: Path, bundle: Path) -> AnalysisDocument:
     """Produce an analysis report; never select builds, queries or flags from source data."""
     capture, output, bundle = (
@@ -103,42 +196,7 @@ def analyze_capture(capture: Path, output: Path, bundle: Path) -> AnalysisDocume
     completed = False
     interrupted = False
     try:
-        executable = bundle / "codeql"
-        query = bundle / QUERY_RELATIVE
-        if not executable.is_file():
-            raise AnalysisFailure(
-                "codeql_missing",
-                "Prepare CodeQL with scripts/prepare_codeql.py and pass its codeql directory",
-            )
-        version = json.loads(
-            run_command(
-                [str(executable), "version", "--format=json"],
-                stage="version",
-                root=output,
-                env=env,
-                timeout=30,
-                records=records,
-            )
-        )
-        if not isinstance(version, dict) or version.get("version") != CODEQL_VERSION:
-            raise AnalysisFailure("codeql_version", "Expected prepared CodeQL 2.27.3")
-        tool = ToolIdentity(name="CodeQL", version=CODEQL_VERSION)
-        if (
-            not query.is_file()
-            or hashlib.sha256(query.read_bytes()).hexdigest() != QUERY_SHA256
-            or re.search(
-                r"^version:\s*1\.8\.13\s*$",
-                (query.parents[2] / "qlpack.yml").read_text(),
-                re.MULTILINE,
-            )
-            is None
-        ):
-            raise AnalysisFailure(
-                "query_mismatch", "Expected the pinned bundled official Python query and pack"
-            )
-        tool = ToolIdentity(
-            name="CodeQL", version=CODEQL_VERSION, rule_pack="codeql/python-queries@" + PACK_VERSION
-        )
+        tool = check_bundle(bundle, output, env, records)
         source = work / "source"
         source.mkdir()
         with open_root(capture / "source") as descriptor:
@@ -153,49 +211,7 @@ def analyze_capture(capture: Path, output: Path, bundle: Path) -> AnalysisDocume
             )
         for directory, _, _ in os.walk(source, topdown=False):
             Path(directory).chmod(0o555)
-        database = work / "database"
-        run_command(
-            [
-                str(executable),
-                "database",
-                "create",
-                str(database),
-                "--language=python",
-                "--build-mode=none",
-                f"--source-root={source}",
-                "--threads=2",
-                "--ram=2048",
-            ],
-            stage="extract",
-            root=output,
-            env=env,
-            timeout=180,
-            records=records,
-        )
-        run_command(
-            [
-                str(executable),
-                "database",
-                "analyze",
-                str(database),
-                str(query),
-                "--format=sarifv2.1.0",
-                "--max-paths=4",
-                f"--output={sarif}",
-                "--threads=2",
-                "--ram=2048",
-            ],
-            stage="query",
-            root=output,
-            env=env,
-            timeout=300,
-            records=records,
-            sarif=sarif,
-        )
-        if not sarif.is_file() or sarif.stat().st_size > MAX_SARIF_BYTES:
-            raise AnalysisFailure(
-                "sarif_limit", "CodeQL SARIF is absent or exceeds the output limit"
-            )
+        query_source(bundle, output, env, records)
         if verify_capture(capture) != provenance:
             raise AnalysisFailure("source_changed", "Input capture changed during analysis")
         with open_root(source) as descriptor:
