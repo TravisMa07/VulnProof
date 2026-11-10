@@ -43,6 +43,8 @@ jobs:
         run: |
           uv run --isolated --no-project --python 3.14.10 --with dist/*.whl python -I -c "from vulnproof.models import EvidenceBundle; from vulnproof.static.analysis import fixture_manifest; from vulnproof.correlation import policy; from vulnproof.planning import planning_catalog; from vulnproof.runner import runner_approval; print(EvidenceBundle.model_json_schema()['title']); print(len(fixture_manifest().fixtures)); print(policy().rule_sha256); print(planning_catalog().id); print(runner_approval().profile)"
           uv run --isolated --no-project --python 3.14.10 --with dist/*.whl vulnproof --help
+          uv run --isolated --no-project --python 3.14.10 --with dist/*.whl vulnproof report --help
+          uv run --isolated --no-project --python 3.14.10 --with dist/*.whl python -I -c "from vulnproof.reporting import ReportDocument; print(ReportDocument.model_json_schema()['title'])"
 
   codeql-analysis:
     name: CodeQL analysis integration
@@ -140,6 +142,7 @@ jobs:
         with:
           name: cwe22-validation-diagnostics
           path: |
+            .cache/validation-check/*/report/
             .cache/validation-check/*/vulnerable/
             .cache/validation-check/*/unverified-source/
             .cache/validation-check/*/patched-driver-only/attempt.json

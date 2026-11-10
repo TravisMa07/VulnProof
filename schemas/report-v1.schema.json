@@ -1,0 +1,1350 @@
+{
+  "$defs": {
+    "Artifact": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "media_type": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Media Type",
+          "type": "string"
+        },
+        "path": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Path",
+          "type": "string"
+        },
+        "sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sha256"
+        },
+        "size_bytes": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Size Bytes"
+        },
+        "truncated": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Truncated"
+        }
+      },
+      "required": [
+        "id",
+        "path",
+        "media_type"
+      ],
+      "title": "Artifact",
+      "type": "object"
+    },
+    "ArtifactCheck": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact": {
+          "$ref": "#/$defs/Artifact"
+        },
+        "observed_sha256": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Observed Sha256"
+        },
+        "observed_size_bytes": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Observed Size Bytes"
+        },
+        "preview": {
+          "default": "",
+          "maxLength": 21848,
+          "title": "Preview",
+          "type": "string"
+        },
+        "preview_encoding": {
+          "default": "none",
+          "enum": [
+            "utf-8",
+            "base64",
+            "none"
+          ],
+          "title": "Preview Encoding",
+          "type": "string"
+        },
+        "preview_truncated": {
+          "default": false,
+          "title": "Preview Truncated",
+          "type": "boolean"
+        },
+        "reasons": {
+          "items": {
+            "$ref": "#/$defs/Reason"
+          },
+          "minItems": 1,
+          "title": "Reasons",
+          "type": "array"
+        },
+        "status": {
+          "enum": [
+            "verified",
+            "incomplete",
+            "missing",
+            "changed",
+            "unreadable",
+            "limit_exceeded"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "artifact",
+        "status",
+        "reasons"
+      ],
+      "title": "ArtifactCheck",
+      "type": "object"
+    },
+    "Assessment": {
+      "additionalProperties": false,
+      "properties": {
+        "classification": {
+          "enum": [
+            "confirmed",
+            "inconclusive",
+            "unsupported",
+            "failed"
+          ],
+          "title": "Classification",
+          "type": "string"
+        },
+        "execution_evidence_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Execution Evidence Id"
+        },
+        "reasons": {
+          "items": {
+            "$ref": "#/$defs/Reason"
+          },
+          "minItems": 1,
+          "title": "Reasons",
+          "type": "array"
+        },
+        "static_evidence_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Static Evidence Id"
+        },
+        "static_path_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Static Path Id"
+        }
+      },
+      "required": [
+        "classification",
+        "reasons"
+      ],
+      "title": "Assessment",
+      "type": "object"
+    },
+    "Attempt": {
+      "additionalProperties": false,
+      "properties": {
+        "approval_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Approval Sha256",
+          "type": "string"
+        },
+        "attempt_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          "title": "Attempt Id",
+          "type": "string"
+        },
+        "authorization_scope": {
+          "const": "fixture_cwe22_validation_only",
+          "title": "Authorization Scope",
+          "type": "string"
+        },
+        "candidate_result_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          "title": "Candidate Result Id",
+          "type": "string"
+        },
+        "cleanup": {
+          "enum": [
+            "not_needed",
+            "verified_absent",
+            "unverified"
+          ],
+          "title": "Cleanup",
+          "type": "string"
+        },
+        "commands": {
+          "items": {
+            "$ref": "#/$defs/DockerCommand"
+          },
+          "title": "Commands",
+          "type": "array"
+        },
+        "driver": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Driver"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "execution": {
+          "enum": [
+            "not_started",
+            "completed",
+            "failed",
+            "timed_out",
+            "output_limit",
+            "interrupted"
+          ],
+          "title": "Execution",
+          "type": "string"
+        },
+        "execution_authorized": {
+          "const": true,
+          "title": "Execution Authorized",
+          "type": "boolean"
+        },
+        "exit_code": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Exit Code"
+        },
+        "finding_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          "title": "Finding Id",
+          "type": "string"
+        },
+        "fixture_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          "title": "Fixture Id",
+          "type": "string"
+        },
+        "image": {
+          "$ref": "#/$defs/PreparedImage"
+        },
+        "oom_killed": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Oom Killed"
+        },
+        "path_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          "title": "Path Id",
+          "type": "string"
+        },
+        "plan_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Plan Sha256",
+          "type": "string"
+        },
+        "policy_verified": {
+          "title": "Policy Verified",
+          "type": "boolean"
+        },
+        "preparation_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Preparation Sha256",
+          "type": "string"
+        },
+        "profile": {
+          "const": "fixture-cwe22-validation-v1",
+          "title": "Profile",
+          "type": "string"
+        },
+        "reasons": {
+          "items": {
+            "$ref": "#/$defs/Reason"
+          },
+          "title": "Reasons",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "profile",
+        "attempt_id",
+        "fixture_id",
+        "image",
+        "preparation_sha256",
+        "approval_sha256",
+        "plan_sha256",
+        "finding_id",
+        "candidate_result_id",
+        "path_id",
+        "execution_authorized",
+        "authorization_scope",
+        "policy_verified",
+        "execution",
+        "cleanup",
+        "exit_code",
+        "oom_killed",
+        "driver",
+        "commands",
+        "reasons"
+      ],
+      "title": "Attempt",
+      "type": "object"
+    },
+    "Canary": {
+      "additionalProperties": false,
+      "properties": {
+        "body_base64": {
+          "title": "Body Base64",
+          "type": "string"
+        },
+        "initially_absent": {
+          "const": true,
+          "title": "Initially Absent",
+          "type": "boolean"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "initially_absent",
+        "body_base64"
+      ],
+      "title": "Canary",
+      "type": "object"
+    },
+    "DockerCommand": {
+      "additionalProperties": false,
+      "properties": {
+        "duration_seconds": {
+          "minimum": 0,
+          "title": "Duration Seconds",
+          "type": "number"
+        },
+        "log": {
+          "$ref": "#/$defs/Artifact"
+        },
+        "outcome": {
+          "enum": [
+            "completed",
+            "failed",
+            "timed_out",
+            "output_limit",
+            "interrupted",
+            "start_failed"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "return_code": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Return Code"
+        },
+        "stage": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          "title": "Stage",
+          "type": "string"
+        }
+      },
+      "required": [
+        "stage",
+        "outcome",
+        "return_code",
+        "duration_seconds",
+        "log"
+      ],
+      "title": "DockerCommand",
+      "type": "object"
+    },
+    "Driver": {
+      "additionalProperties": false,
+      "properties": {
+        "canary": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Canary"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "control": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Response"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "diagnostics_passed": {
+          "title": "Diagnostics Passed",
+          "type": "boolean"
+        },
+        "errors": {
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+            "type": "string"
+          },
+          "title": "Errors",
+          "type": "array"
+        },
+        "outcome": {
+          "enum": [
+            "completed",
+            "failed"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "probes": {
+          "items": {
+            "$ref": "#/$defs/Probe"
+          },
+          "title": "Probes",
+          "type": "array"
+        },
+        "profile": {
+          "const": "fixture-cwe22-validation-v1",
+          "title": "Profile",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "profile",
+        "outcome",
+        "diagnostics_passed",
+        "control",
+        "canary",
+        "probes",
+        "errors"
+      ],
+      "title": "Driver",
+      "type": "object"
+    },
+    "EvidenceBundle": {
+      "additionalProperties": false,
+      "properties": {
+        "artifacts": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Artifact"
+          },
+          "title": "Artifacts",
+          "type": "array"
+        },
+        "assessment": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Assessment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "execution_evidence": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ExecutionEvidence"
+          },
+          "title": "Execution Evidence",
+          "type": "array"
+        },
+        "finding": {
+          "$ref": "#/$defs/Finding"
+        },
+        "schema_version": {
+          "const": "1.0",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "snapshots": {
+          "items": {
+            "$ref": "#/$defs/SourceSnapshot"
+          },
+          "minItems": 1,
+          "title": "Snapshots",
+          "type": "array"
+        },
+        "static_evidence": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/StaticEvidence"
+          },
+          "title": "Static Evidence",
+          "type": "array"
+        }
+      },
+      "required": [
+        "schema_version",
+        "finding",
+        "snapshots"
+      ],
+      "title": "EvidenceBundle",
+      "type": "object"
+    },
+    "ExecutionEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+            "type": "string"
+          },
+          "title": "Artifact Ids",
+          "type": "array"
+        },
+        "finding_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          "title": "Finding Id",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "image_id": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Image Id"
+        },
+        "oracle": {
+          "default": "not_evaluated",
+          "enum": [
+            "observed",
+            "not_observed",
+            "not_evaluated"
+          ],
+          "title": "Oracle",
+          "type": "string"
+        },
+        "oracle_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Oracle Id"
+        },
+        "outcome": {
+          "enum": [
+            "completed",
+            "failed",
+            "not_run"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "reasons": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Reason"
+          },
+          "title": "Reasons",
+          "type": "array"
+        },
+        "source": {
+          "$ref": "#/$defs/SourceBinding"
+        },
+        "static_evidence_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Static Evidence Id"
+        },
+        "static_path_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Static Path Id"
+        }
+      },
+      "required": [
+        "id",
+        "finding_id",
+        "source",
+        "outcome"
+      ],
+      "title": "ExecutionEvidence",
+      "type": "object"
+    },
+    "Finding": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+            "type": "string"
+          },
+          "title": "Artifact Ids",
+          "type": "array"
+        },
+        "cwes": {
+          "default": [],
+          "items": {
+            "pattern": "^CWE-[1-9][0-9]*$",
+            "type": "string"
+          },
+          "title": "Cwes",
+          "type": "array"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "location": {
+          "$ref": "#/$defs/SourceLocation"
+        },
+        "original_ref": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Original Ref"
+        },
+        "rule_id": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Rule Id",
+          "type": "string"
+        },
+        "scanner": {
+          "$ref": "#/$defs/ToolIdentity"
+        },
+        "source": {
+          "$ref": "#/$defs/SourceBinding"
+        }
+      },
+      "required": [
+        "id",
+        "scanner",
+        "rule_id",
+        "location",
+        "source"
+      ],
+      "title": "Finding",
+      "type": "object"
+    },
+    "PreparedImage": {
+      "additionalProperties": false,
+      "properties": {
+        "fixture_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          "title": "Fixture Id",
+          "type": "string"
+        },
+        "image_id": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Image Id",
+          "type": "string"
+        },
+        "recipe_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Recipe Sha256",
+          "type": "string"
+        },
+        "source_fingerprint": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Source Fingerprint",
+          "type": "string"
+        }
+      },
+      "required": [
+        "fixture_id",
+        "source_fingerprint",
+        "recipe_sha256",
+        "image_id"
+      ],
+      "title": "PreparedImage",
+      "type": "object"
+    },
+    "Probe": {
+      "additionalProperties": false,
+      "properties": {
+        "body_base64": {
+          "maxLength": 87384,
+          "title": "Body Base64",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "parent_traversal",
+            "absolute_path"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "status": {
+          "maximum": 599,
+          "minimum": 100,
+          "title": "Status",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "status",
+        "body_base64",
+        "kind"
+      ],
+      "title": "Probe",
+      "type": "object"
+    },
+    "Reason": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message"
+      ],
+      "title": "Reason",
+      "type": "object"
+    },
+    "Response": {
+      "additionalProperties": false,
+      "properties": {
+        "body_base64": {
+          "maxLength": 87384,
+          "title": "Body Base64",
+          "type": "string"
+        },
+        "status": {
+          "maximum": 599,
+          "minimum": 100,
+          "title": "Status",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "status",
+        "body_base64"
+      ],
+      "title": "Response",
+      "type": "object"
+    },
+    "RuntimeDetail": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Artifact Id"
+        },
+        "attempt": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Attempt"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "execution_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          "title": "Execution Id",
+          "type": "string"
+        },
+        "reason": {
+          "$ref": "#/$defs/Reason"
+        },
+        "status": {
+          "enum": [
+            "available",
+            "unavailable",
+            "invalid"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "execution_id",
+        "artifact_id",
+        "status",
+        "reason"
+      ],
+      "title": "RuntimeDetail",
+      "type": "object"
+    },
+    "SourceBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "expected_snapshot_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          "title": "Expected Snapshot Id",
+          "type": "string"
+        },
+        "observed_snapshot_id": {
+          "anyOf": [
+            {
+              "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Observed Snapshot Id"
+        },
+        "reason": {
+          "$ref": "#/$defs/Reason"
+        },
+        "state": {
+          "default": "unverified",
+          "enum": [
+            "matched",
+            "unverified",
+            "mismatched"
+          ],
+          "title": "State",
+          "type": "string"
+        }
+      },
+      "required": [
+        "expected_snapshot_id",
+        "reason"
+      ],
+      "title": "SourceBinding",
+      "type": "object"
+    },
+    "SourceFile": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Path",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        }
+      },
+      "required": [
+        "path",
+        "sha256"
+      ],
+      "title": "SourceFile",
+      "type": "object"
+    },
+    "SourceLocation": {
+      "additionalProperties": false,
+      "properties": {
+        "end_column": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End Column"
+        },
+        "end_line": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "End Line"
+        },
+        "path": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Path",
+          "type": "string"
+        },
+        "start_column": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Start Column"
+        },
+        "start_line": {
+          "exclusiveMinimum": 0,
+          "title": "Start Line",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "path",
+        "start_line"
+      ],
+      "title": "SourceLocation",
+      "type": "object"
+    },
+    "SourceSnapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "commit_id": {
+          "anyOf": [
+            {
+              "pattern": "^(?:[0-9a-f]{40}|[0-9a-f]{64})$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Commit Id"
+        },
+        "dirty": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dirty"
+        },
+        "files": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SourceFile"
+          },
+          "title": "Files",
+          "type": "array"
+        },
+        "fingerprint": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fingerprint"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id"
+      ],
+      "title": "SourceSnapshot",
+      "type": "object"
+    },
+    "StaticEvidence": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_ids": {
+          "default": [],
+          "items": {
+            "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+            "type": "string"
+          },
+          "title": "Artifact Ids",
+          "type": "array"
+        },
+        "cwe": {
+          "anyOf": [
+            {
+              "pattern": "^CWE-[1-9][0-9]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cwe"
+        },
+        "finding_id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          "title": "Finding Id",
+          "type": "string"
+        },
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "outcome": {
+          "enum": [
+            "path_found",
+            "no_path_found",
+            "unsupported",
+            "failed",
+            "not_run"
+          ],
+          "title": "Outcome",
+          "type": "string"
+        },
+        "paths": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/StaticPath"
+          },
+          "title": "Paths",
+          "type": "array"
+        },
+        "reasons": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Reason"
+          },
+          "title": "Reasons",
+          "type": "array"
+        },
+        "rule_id": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rule Id"
+        },
+        "source": {
+          "$ref": "#/$defs/SourceBinding"
+        },
+        "tool": {
+          "$ref": "#/$defs/ToolIdentity"
+        }
+      },
+      "required": [
+        "id",
+        "finding_id",
+        "tool",
+        "source",
+        "outcome"
+      ],
+      "title": "StaticEvidence",
+      "type": "object"
+    },
+    "StaticPath": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "pattern": "^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$",
+          "title": "Id",
+          "type": "string"
+        },
+        "locations": {
+          "items": {
+            "$ref": "#/$defs/SourceLocation"
+          },
+          "minItems": 2,
+          "title": "Locations",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "locations"
+      ],
+      "title": "StaticPath",
+      "type": "object"
+    },
+    "ToolIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "minLength": 1,
+          "pattern": "\\S",
+          "title": "Name",
+          "type": "string"
+        },
+        "rule_pack": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Rule Pack"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "minLength": 1,
+              "pattern": "\\S",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "title": "ToolIdentity",
+      "type": "object"
+    }
+  },
+  "$id": "urn:vulnproof:report:1.0",
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifacts": {
+      "items": {
+        "$ref": "#/$defs/ArtifactCheck"
+      },
+      "title": "Artifacts",
+      "type": "array"
+    },
+    "evidence": {
+      "$ref": "#/$defs/EvidenceBundle"
+    },
+    "integrity": {
+      "enum": [
+        "verified",
+        "incomplete",
+        "failed"
+      ],
+      "title": "Integrity",
+      "type": "string"
+    },
+    "profile": {
+      "const": "single-validation-report-v1",
+      "title": "Profile",
+      "type": "string"
+    },
+    "result_sha256": {
+      "pattern": "^[0-9a-f]{64}$",
+      "title": "Result Sha256",
+      "type": "string"
+    },
+    "runtime": {
+      "items": {
+        "$ref": "#/$defs/RuntimeDetail"
+      },
+      "title": "Runtime",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "warnings": {
+      "items": {
+        "$ref": "#/$defs/Reason"
+      },
+      "title": "Warnings",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "profile",
+    "result_sha256",
+    "evidence",
+    "integrity",
+    "artifacts",
+    "runtime",
+    "warnings"
+  ],
+  "title": "ReportDocument",
+  "type": "object"
+}

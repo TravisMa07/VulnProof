@@ -137,8 +137,8 @@ uv run --locked vulnproof plan --capture .cache/investigation-001/snapshot \
 
 See [validation plans](docs/validation-plans.md) for the trusted fixture template,
 blocked cases, execution requirements, and unmet prerequisites. Drafts do not
-authorize execution or verify scanner provenance. Dynamic testing and assessments
-remain later stages.
+authorize execution or verify scanner provenance. Execution requires the separate
+authorization and evidence checks described below.
 
 The [restricted Docker runner](docs/docker-runner.md) can now execute explicitly
 authorized fixture diagnostics and a legitimate download using separately prepared
@@ -150,6 +150,16 @@ The [controlled scanner](docs/controlled-scans.md) runs pinned Semgrep against
 approved fixture bytes and verifies a separate source association. Imported findings
 remain unchanged. Real Semgrep-to-CodeQL integration is checked independently of
 Docker; its verified source association supports the separate dynamic confirmation stage.
+
+Generate offline JSON and self-contained HTML from retained validation evidence:
+
+```sh
+uv run --locked vulnproof report --validation .cache/validation --output .cache/report
+```
+
+See [evidence reports](docs/evidence-reports.md) for artifact integrity, bounded
+previews, exit codes, and interpretation. Reports preserve the recorded assessment
+and separately identify missing, changed, or incomplete evidence.
 
 ## Current repository
 

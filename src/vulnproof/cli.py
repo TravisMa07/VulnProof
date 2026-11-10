@@ -16,6 +16,7 @@ from .ingest import ImportFailure, ingest_sarif
 from .ingest.sarif import MAX_INPUT_BYTES
 from .planning import PlanningFailure, create_plans
 from .provenance import CaptureFailure, capture_source, verify_capture
+from .reporting import ReportFailure, write_report
 from .runner import RunnerFailure, run_diagnostics
 from .scanning import ScanFailure, scan_fixture, verify_scan
 from .static import AnalysisFailure, analyze_capture
@@ -139,8 +140,40 @@ def main(argv: Sequence[str] | None = None) -> int:
         "--path-id", help="Required when the unique candidate has multiple paths"
     )
     validation.add_argument("--authorize-validation", action="store_true")
+    report_parser = commands.add_parser(
+        "report", help="Render offline JSON/HTML from retained validation evidence"
+    )
+    report_parser.add_argument(
+        "--validation", type=Path, required=True, help="Directory containing result.json"
+    )
+    report_parser.add_argument(
+        "--output",
+        type=Path,
+        required=True,
+        help="New report directory outside validation evidence",
+    )
     args = parser.parse_args(argv)
     try:
+        if args.command == "report":
+            report_document = write_report(args.validation, args.output)
+            print(
+                json.dumps(
+                    {
+                        "status": "completed",
+                        "recorded_assessment": report_document.evidence.assessment.classification
+                        if report_document.evidence.assessment
+                        else None,
+                        "artifact_integrity": report_document.integrity,
+                        "outputs": ["report.json", "report.html"],
+                    }
+                )
+            )
+            return (
+                0
+                if report_document.integrity == "verified"
+                and all(d.status == "available" for d in report_document.runtime)
+                else 1
+            )
         if args.command == "validate":
 
             def stop_validation(signum: int, frame: object) -> None:
@@ -362,6 +395,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         PlanningFailure,
         RunnerFailure,
         ScanFailure,
+        ReportFailure,
     ) as exc:
         print(f"{exc.code}: {exc}", file=sys.stderr)
         return 2
