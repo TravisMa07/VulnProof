@@ -88,7 +88,7 @@ def checkout_head(root: Path) -> str | None:
     """Observe only HEAD for intake, including checkouts too large for tree capture."""
     try:
         commit = _command(root, ["rev-parse", "--verify", "HEAD"]).decode().strip()
-    except (ValueError, OSError):
+    except ValueError, OSError:
         return None
     return commit if re.fullmatch(COMMIT_PATTERN, commit) else None
 
