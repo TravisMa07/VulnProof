@@ -14,6 +14,7 @@ from pathlib import Path
 from .correlation import CorrelationFailure, correlate
 from .correlation.engine import MAX_DOCUMENT_BYTES
 from .correlation.repository import correlate_repository, prepare_import, prepare_inventory
+from .discovery.repository import discover
 from .ingest import ImportFailure, ingest_sarif
 from .ingest.sarif import MAX_INPUT_BYTES
 from .intake import inventory
@@ -92,6 +93,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     for flag in ("scan", "investigation", "output"):
         links.add_argument("--" + flag, type=Path, required=True)
+    discovery = commands.add_parser(
+        "discover-repository", help="Discover application routes and inputs for correlated paths"
+    )
+    for flag in ("scan", "investigation", "correlation", "output"):
+        discovery.add_argument("--" + flag, type=Path, required=True)
     investigation = commands.add_parser(
         "investigate", help="Trace modeled paths in a repository scan snapshot"
     )
@@ -194,7 +200,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             else:
                 prepare_import(args.repo, args.component, _read_input(args.sarif), args.output)
             return 0
-        if args.command == "correlate-repository":
+        if args.command in ("correlate-repository", "discover-repository"):
             if any(
                 args.output.resolve().is_relative_to(root.resolve())
                 for root in (args.scan, args.investigation)
@@ -202,7 +208,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 raise CorrelationFailure(
                     "invalid_output", "Choose a new output file outside both evidence directories"
                 )
-            content = correlate_repository(args.scan, args.investigation)
+            if args.command == "discover-repository":
+                content = discover(args.scan, args.investigation, args.correlation)
+            else:
+                content = correlate_repository(args.scan, args.investigation)
             _publish(args.output, content)
             return 0
         if args.command == "scan":

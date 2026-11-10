@@ -59,3 +59,18 @@ The correlator rechecks captured files, regenerates the inventory from raw SARIF
 The first shipped mapping covers the Semgrep OSS repository request-file-read rule and CodeQL Python path injection. It compares the reported region with the first argument of a direct Python open call and requires the CodeQL sink to identify that argument's full span. A sink reported with coarser coordinates can therefore have no candidate. Several compatible sinks, or a coarse scanner region spanning multiple plausible calls, yield an ambiguous result. Several paths to one sink are retained together. The mapping describes the path passed to open and makes no claim about its access mode.
 
 Unknown mappings, missing locations, unsupported analysis and analysis failures have explicit outcomes. A completed query with no compatible path yields no candidate. Partial analyses can omit candidates. Imported producer and rule identities are declarations from the report. Captured source hashes rely on trusted local evidence storage.
+
+## Discover application entry points
+
+After correlation, run discovery on the same retained artifacts.
+
+```sh
+vulnproof discover-repository --scan evidence --investigation analysis \
+  --correlation correlation.json --output discovery.json
+```
+
+Discovery rebuilds correlation, verifies the supplied inputs and reads the captured Python modules named by candidate paths. It performs static inspection without importing the application. Each finding keeps its correlation disposition and path references. Each distinct path has its own observations. Follow a binding's source locations to review its application declaration, handler, HTTP method, route and literal query key.
+
+The first adapter recognizes direct Flask imports, a module-level application assignment, literal method decorators or a literal route with explicit methods, and query lookups using request.args.get. A plain route defaults to GET. The application symbol and declaration file identify the application in source. Discovery anchors each path at the first source node after any Flask request import. It binds a query input when its expression matches a CodeQL node's exact span in that handler. A path reaching only the handler produces an unresolved input. Several plausible routes remain visible.
+
+Factories, imported application objects, dynamic registrations, parameterized route paths and unsupported expressions can leave gaps. A component capture may omit the module that registers a route. The adapter limits parsing to 256 KiB per module and 512 tokens per logical statement. Inspect each path's gaps and its binding-level gaps, as well as the correlation and analysis status. Exit 0 means the discovery document was written, including when there are no candidate paths. Inconsistent evidence is rejected. Selecting a known-good request and supplying operator configuration belong to D2.
