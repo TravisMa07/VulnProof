@@ -25,6 +25,9 @@ class Handler:
     inputs: list[tuple[str, SourceLocation]]
     gaps: list[str]
     nested_scopes: list[tuple[int, int]]
+    route_literal: str | None
+    methods: list[str]
+    decorator: SourceLocation
 
 
 def literal(node: ast.expr) -> str | None:
@@ -194,6 +197,9 @@ def parse_module(path: str, data: bytes) -> Module:
                     inputs,
                     gaps,
                     nested_scopes,
+                    route,
+                    methods if dec.func.attr == "route" else [dec.func.attr.upper()],
+                    span(dec),
                 )
             )
     return Module(handlers, request_import_lines)

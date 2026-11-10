@@ -73,4 +73,32 @@ Discovery rebuilds correlation, verifies the supplied inputs and reads the captu
 
 The first adapter recognizes direct Flask imports, a module-level application assignment, literal method decorators or a literal route with explicit methods, and query lookups using request.args.get. A plain route defaults to GET. The application symbol and declaration file identify the application in source. Discovery anchors each path at the first source node after any Flask request import. It binds a query input when its expression matches a CodeQL node's exact span in that handler. A path reaching only the handler produces an unresolved input. Several plausible routes remain visible.
 
-Factories, imported application objects, dynamic registrations, parameterized route paths and unsupported expressions can leave gaps. A component capture may omit the module that registers a route. The adapter limits parsing to 256 KiB per module and 512 tokens per logical statement. Inspect each path's gaps and its binding-level gaps, as well as the correlation and analysis status. Exit 0 means the discovery document was written, including when there are no candidate paths. Inconsistent evidence is rejected. Selecting a known-good request and supplying operator configuration belong to D2.
+Factories, imported application objects, dynamic registrations, parameterized route paths and unsupported expressions can leave gaps. A component capture may omit the module that registers a route. The adapter limits parsing to 256 KiB per module and 512 tokens per logical statement. Inspect each path's gaps and its binding-level gaps, as well as the correlation and analysis status. Exit 0 means the discovery document was written, including when there are no candidate paths. Inconsistent evidence is rejected. The repository planner accepts operator configuration and control expectations.
+
+## Draft a validation plan
+
+```sh
+vulnproof plan-repository --scan evidence --investigation analysis \
+  --correlation correlation.json --discovery discovery.json --output initial-plans.json
+```
+
+Read each finding's disposition and reasons. For a single supported file-open sink with complete analysis, the planner uses discovery to identify a handler. An endpoint profile supplies application-specific details. Pass it explicitly with `--config app.json` and choose a new output path. This example expects a response body whose SHA-256 you have independently recorded for the control document.
+
+```json
+{
+  "schema_version": "1.0",
+  "endpoints": [{
+    "file": "exports/web.py",
+    "handler": "export",
+    "download_root": "/srv/downloads",
+    "control_value": "manual.txt",
+    "control_sha256": "62527d78c70ef8f47bffc15e6c5352dd6f0a751b97f620013e52c25a138aa62f"
+  }]
+}
+```
+
+Each captured file and handler pair can have one profile. Optional fields are `entry_point` (captured Python file and application symbol, e.g. `exports/web.py:service`), `method` (GET), `route` (local literal path), and `query_key`. A profile can fill missing values or select among discovered alternatives. A conflicting declaration blocks the finding and records both values. An incomplete analysis or competing sink results require further investigation.
+
+The output retains every occurrence, all candidate path IDs, source locations and the origin of each selected field. Follow the draft's support references into the path bindings. The control must return HTTP 200 and exactly the expected body digest. The shared template describes fresh canary preparation, bounded requests and how to interpret observations. A failed control stops probing. An unsuccessful probe leaves safety undetermined.
+
+A successful planning command exits 0 even if every occurrence is blocked. Modified evidence, invalid configuration or an existing output file cause an error. Planning only reads local artifacts. Drafts retain scanner provenance and require a source-bound image, execution authorization and a trusted runtime driver in the execution stage.

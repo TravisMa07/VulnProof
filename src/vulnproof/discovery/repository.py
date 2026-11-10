@@ -59,7 +59,13 @@ def binding(handler: Handler, nodes: list[SourceLocation]) -> dict[str, object] 
     }
 
 
-def discover(scan: Path, investigation: Path, correlation: Path) -> str:
+def discover(
+    scan: Path,
+    investigation: Path,
+    correlation: Path,
+    *,
+    route_parts: dict[tuple[str, int], dict[str, object]] | None = None,
+) -> str:
     try:
         supplied = read_local(correlation.absolute().parent, correlation.name, MAX_DOCUMENT_BYTES)
         report = json.loads(correlate_repository(scan, investigation))
@@ -77,7 +83,7 @@ def discover(scan: Path, investigation: Path, correlation: Path) -> str:
         modules: dict[str, Module] = {}
 
         def inspect(path: StaticPath) -> dict[str, object]:
-            bindings = []
+            bindings: list[dict[str, object]] = []
             gaps = set()
             # CodeQL may start at the imported Flask request object. The first
             # subsequent source node anchors the handler; later handlers can be callees.
@@ -110,6 +116,12 @@ def discover(scan: Path, investigation: Path, correlation: Path) -> str:
                         continue
                     observed = binding(handler, nodes)
                     if observed is not None:
+                        if route_parts is not None:
+                            route_parts[path.id, len(bindings)] = {
+                                "route": handler.route_literal,
+                                "methods": [m.upper() for m in handler.methods],
+                                "location": handler.decorator.model_dump(),
+                            }
                         bindings.append(observed)
                 break
             if not bindings:
