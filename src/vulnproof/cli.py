@@ -19,6 +19,7 @@ from .ingest import ImportFailure, ingest_sarif
 from .ingest.sarif import MAX_INPUT_BYTES
 from .intake import inventory
 from .planning import PlanningFailure, create_plans
+from .planning.repository import plan_repository
 from .provenance import CaptureFailure, capture_source, verify_capture
 from .reporting import ReportFailure, write_report
 from .runner import RunnerFailure, run_diagnostics
@@ -98,6 +99,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     for flag in ("scan", "investigation", "correlation", "output"):
         discovery.add_argument("--" + flag, type=Path, required=True)
+    repo_plan = commands.add_parser(
+        "plan-repository", help="Draft validation plans from repository discovery"
+    )
+    for flag in ("scan", "investigation", "correlation", "discovery", "output"):
+        repo_plan.add_argument("--" + flag, type=Path, required=True)
+    repo_plan.add_argument("--config", type=Path, help="Optional endpoint profiles (JSON)")
     investigation = commands.add_parser(
         "investigate", help="Trace modeled paths in a repository scan snapshot"
     )
@@ -194,6 +201,19 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     try:
+        if args.command == "plan-repository":
+            if any(
+                args.output.resolve().is_relative_to(root.resolve())
+                for root in (args.scan, args.investigation)
+            ):
+                raise PlanningFailure(
+                    "invalid_output", "Choose an output outside the evidence directories"
+                )
+            content = plan_repository(
+                args.scan, args.investigation, args.correlation, args.discovery, args.config
+            )
+            _publish(args.output, content)
+            return 0
         if args.command == "prepare-repository":
             if args.inventory:
                 prepare_inventory(args.repo, args.component, args.inventory, args.output)
