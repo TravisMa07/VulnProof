@@ -1,0 +1,17 @@
+rules:
+  - id: vulnproof.repository.request-file-read
+    languages: [python]
+    mode: taint
+    message: A request query value reaches the path argument of open.
+    severity: WARNING
+    pattern-sources:
+      - pattern: request.args.get(...)
+    pattern-sinks:
+      - patterns:
+          - pattern: open($PATH, ...)
+          - focus-metavariable: $PATH
+  - id: vulnproof.repository.query-eval
+    languages: [javascript]
+    message: A request query property is evaluated as JavaScript.
+    severity: WARNING
+    pattern: eval($REQ.query.$FIELD)

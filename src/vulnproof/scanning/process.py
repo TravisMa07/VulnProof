@@ -24,7 +24,9 @@ def command(
     records: list[ScanCommand],
     timeout: float,
     sarif: Path | None = None,
+    coverage: Path | None = None,
 ) -> bytes:
+    reports = [p for p in (sarif, coverage) if p is not None]
     stdout = root / "diagnostics" / f"{stage}.stdout"
     stderr = root / "diagnostics" / f"{stage}.stderr"
     process: subprocess.Popen[bytes] | None = None
@@ -48,7 +50,7 @@ def command(
                         "scanner_timeout", "Pinned Semgrep operation exceeded its deadline"
                     )
                 if stdout.stat().st_size + stderr.stat().st_size > MAX_LOG_BYTES or (
-                    sarif is not None and sarif.exists() and sarif.stat().st_size > MAX_SARIF_BYTES
+                    any(p.exists() and p.stat().st_size > MAX_SARIF_BYTES for p in reports)
                 ):
                     outcome = "output_limit"
                     raise ScanFailure(
@@ -56,7 +58,7 @@ def command(
                     )
                 time.sleep(0.02)
             if stdout.stat().st_size + stderr.stat().st_size > MAX_LOG_BYTES or (
-                sarif is not None and sarif.exists() and sarif.stat().st_size > MAX_SARIF_BYTES
+                any(p.exists() and p.stat().st_size > MAX_SARIF_BYTES for p in reports)
             ):
                 outcome = "output_limit"
                 raise ScanFailure(

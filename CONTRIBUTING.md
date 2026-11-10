@@ -4,7 +4,7 @@ VulnProof is being built one reviewable roadmap item at a time. Discuss the desi
 acceptance criteria before implementation. Complete review and obtain the project
 owner's explicit merge authorization before starting the next item. Follow the
 [active expansion roadmap](docs/roadmap.md#active-expansion) for the agreed PR sequence.
-Milestone A will begin whole-repository intake. Use the existing CWE-22 fixture pair
+Repository intake and [checkout scanning](docs/repository-scan.md) feed the same inventory. Use the existing CWE-22 fixture pair
 as regression coverage as support expands to unfamiliar checkouts.
 
 ## Development environment
