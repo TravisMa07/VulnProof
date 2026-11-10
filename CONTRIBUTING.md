@@ -65,6 +65,11 @@ validation images; see [CWE-22 validation](docs/cwe22-validation.md). Its real i
 script uses actual Semgrep and CodeQL findings for the vulnerable workflow. Patched
 driver checks run independently without fabricated findings or assessments.
 
+The offline `report` command produces JSON and passive HTML from retained evidence;
+see [evidence reports](docs/evidence-reports.md). Its tests require no external tools.
+When changing the report contract, regenerate `schemas/report-v1.schema.json` using
+`scripts/export_report_schema.py` and review its diff.
+
 ## Required checks
 
 Run the same checks locally as CI:

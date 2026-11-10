@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from vulnproof.correlation import correlate
 from vulnproof.planning import create_plans
+from vulnproof.reporting import write_report
 from vulnproof.scanning import scan_fixture
 from vulnproof.static import analyze_capture
 from vulnproof.validation import validate
@@ -91,6 +92,17 @@ def main() -> None:
     ):
         raise SystemExit("FAIL: fresh-container canary or unverified-source gate")
     print("PASS fresh canary/container and observed-but-unverified inconclusive result", flush=True)
+    reported = write_report(root / "vulnerable", root / "report")
+    if (
+        reported.integrity != "verified"
+        or reported.runtime[0].status != "available"
+        or reported.evidence != first
+    ):
+        raise SystemExit("FAIL: reporting altered evidence or could not verify its artifacts")
+    print(
+        "PASS offline JSON/HTML preserves real confirmed evidence and verified artifacts",
+        flush=True,
+    )
     # Exercise the patched driver independently: no fake patched finding or assessment.
     data = args.preparation.read_bytes()
     prepared = Preparation.model_validate_json(data)
