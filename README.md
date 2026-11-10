@@ -65,7 +65,7 @@ Today, dynamic validation runs reviewed fixtures in prepared images with restric
 
 ## Roadmap
 
-The next milestone will accept a checkout and SARIF reports from multiple producers. Subsequent milestones will add whole-checkout scanning, CodeQL investigation, application setup, and authorized container tests. The expansion checkpoint will use the same installed build and validator on a second compatible repository with application configuration. The four-pair CWE-22 benchmark will follow that demonstration. See the [active expansion sequence and acceptance gates](docs/roadmap.md#active-expansion).
+Repository intake now accepts a checkout and embedded SARIF 2.1.0 results from multiple producers. Subsequent milestones will add whole-checkout scanning, CodeQL investigation, application setup, and authorized container tests. The expansion checkpoint will use the same installed build and validator on a second compatible repository with application configuration. The four-pair CWE-22 benchmark will follow that demonstration. See the [active expansion sequence and acceptance gates](docs/roadmap.md#active-expansion).
 
 The [original MVP plan](docs/mvp.md) documents the fixture baseline, evidence semantics, security controls, and benchmark methodology.
 The [CWE-22 feasibility experiment](docs/cwe22-feasibility.md) covers the initial
@@ -75,7 +75,9 @@ source bindings, observation states, and assessment validation boundaries.
 
 ## Current CLI workflow
 
-The importer supports a subset of Semgrep SARIF 2.1.0. Controlled scanning, CodeQL analysis, and dynamic validation currently use the reviewed CWE-22 Flask fixture pair. The commands below demonstrate that workflow using a Semgrep report for the vulnerable fixture.
+Use `vulnproof intake --repo /path/to/checkout --sarif findings.sarif --output inventory.json` for a whole-checkout inventory. See [repository intake](docs/repository-intake.md) for the optional component filter, supported fields, and result accounting.
+
+The fixture pipeline’s importer supports a subset of Semgrep SARIF 2.1.0. Controlled scanning, CodeQL analysis, and dynamic validation currently use the reviewed CWE-22 Flask fixture pair. The commands below demonstrate that workflow using a Semgrep report for the vulnerable fixture.
 
 ### Import scanner findings
 
