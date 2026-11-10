@@ -72,7 +72,7 @@ def _constant(value: str) -> object:
     raise ValueError("non-finite JSON number")
 
 
-def _decode(data: bytes) -> tuple[str, dict[str, object]]:
+def decode_sarif(data: bytes) -> tuple[str, dict[str, object]]:
     if len(data) > MAX_INPUT_BYTES:
         raise ImportFailure("input_too_large", "SARIF exceeds the 10 MiB input limit")
     try:
@@ -107,15 +107,7 @@ def _decode(data: bytes) -> tuple[str, dict[str, object]]:
     return text, doc
 
 
-def _location(result: dict[str, object]) -> SourceLocation:
-    locations = _array(result.get("locations"))
-    if not locations:
-        raise ValueError("missing primary location")
-    physical = _object(_object(locations[0]).get("physicalLocation"))
-    artifact = _object(physical.get("artifactLocation"))
-    if "index" in artifact:
-        raise ValueError("artifact-table references are unsupported")
-    # %SRCROOT% is treated as a logical root, never resolved to a host directory.
+def repository_uri(artifact: dict[str, object]) -> str:
     if artifact.get("uriBaseId") not in (None, "%SRCROOT%"):
         raise ValueError("unsupported URI base")
     uri = _text(artifact.get("uri"))
@@ -129,7 +121,19 @@ def _location(result: dict[str, object]) -> SourceLocation:
     path = unquote(uri, errors="strict")
     if "%" in path or any(ord(char) < 32 or ord(char) == 127 for char in path):
         raise ValueError("ambiguous encoding or control character in source URI")
-    relative_path(path)
+    return relative_path(path)
+
+
+def _location(result: dict[str, object]) -> SourceLocation:
+    locations = _array(result.get("locations"))
+    if not locations:
+        raise ValueError("missing primary location")
+    physical = _object(_object(locations[0]).get("physicalLocation"))
+    artifact = _object(physical.get("artifactLocation"))
+    if "index" in artifact:
+        raise ValueError("artifact-table references are unsupported")
+    # %SRCROOT% is treated as a logical root, never resolved to a host directory.
+    path = repository_uri(artifact)
     region = _object(physical.get("region"))
     return SourceLocation.model_validate(
         {
@@ -205,7 +209,7 @@ def _scan_status(run: dict[str, object]) -> str:
 
 def ingest_sarif(data: bytes) -> IngestionDocument:
     """Normalize observations from bytes. Never access source files or external references."""
-    text, doc = _decode(data)
+    text, doc = decode_sarif(data)
     digest = hashlib.sha256(data).hexdigest()
     findings: list[ImportedFinding] = []
     runs: list[ImportedRun] = []

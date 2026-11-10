@@ -8,12 +8,14 @@ import stat
 import sys
 import tempfile
 from collections.abc import Sequence
+from dataclasses import asdict
 from pathlib import Path
 
 from .correlation import CorrelationFailure, correlate
 from .correlation.engine import MAX_DOCUMENT_BYTES
 from .ingest import ImportFailure, ingest_sarif
 from .ingest.sarif import MAX_INPUT_BYTES
+from .intake import inventory
 from .planning import PlanningFailure, create_plans
 from .provenance import CaptureFailure, capture_source, verify_capture
 from .reporting import ReportFailure, write_report
@@ -49,6 +51,10 @@ def _publish(path: Path, content: str) -> None:
 def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="vulnproof", description="Investigate scanner findings")
     commands = parser.add_subparsers(dest="command", required=True)
+    intake = commands.add_parser("intake", help="Inventory SARIF results against a local checkout")
+    intake.add_argument("--component", help="Optional repository-relative path prefix")
+    for flag in ("repo", "sarif", "output"):
+        intake.add_argument("--" + flag, type=Path, required=True)
     ingest = commands.add_parser("ingest", help="Import local Semgrep SARIF 2.1.0")
     ingest.add_argument(
         "--sarif", type=Path, required=True, help="Existing SARIF file (10 MiB max)"
@@ -154,6 +160,18 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     try:
+        if args.command == "intake":
+            inv = inventory(_read_input(args.sarif), args.repo, args.component)
+            content = json.dumps(asdict(inv), ensure_ascii=False, indent=2) + "\n"
+            if len(content.encode()) > MAX_DOCUMENT_BYTES:
+                raise ImportFailure("inventory_limit", "Inventory exceeds 64 MiB")
+            _publish(args.output, content)
+            print(
+                json.dumps(
+                    {"status": inv.status, "results": inv.result_count, "runs": len(inv.runs)}
+                )
+            )
+            return int(inv.status == "partial")
         if args.command == "report":
             report_document = write_report(args.validation, args.output)
             print(

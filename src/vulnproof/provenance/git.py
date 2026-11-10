@@ -84,6 +84,15 @@ def _command(root: Path, args: list[str]) -> bytes:
                 process.wait()
 
 
+def checkout_head(root: Path) -> str | None:
+    """Observe only HEAD for intake, including checkouts too large for tree capture."""
+    try:
+        commit = _command(root, ["rev-parse", "--verify", "HEAD"]).decode().strip()
+    except (ValueError, OSError):
+        return None
+    return commit if re.fullmatch(COMMIT_PATTERN, commit) else None
+
+
 def observe_git(root: Path) -> GitState:
     try:
         commit = _command(root, ["rev-parse", "--verify", "HEAD"]).decode().strip()
