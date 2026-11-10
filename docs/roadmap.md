@@ -7,7 +7,7 @@ Split an item if it becomes too large to review; do not combine unrelated items.
 
 ## Active expansion
 
-Milestones A and B provide repository intake and scanning. C1 investigates repository scan snapshots with CodeQL. C2 will connect those paths to individual findings. The default investigation will cover the entire checkout, with an optional component filter. Each finding will retain its identity, evidence, and the reason it stopped or advanced. Each row is a reviewable milestone that can be split into focused PRs.
+Milestones A and B provide repository intake and scanning. C1 investigates repository scan snapshots with CodeQL. C2 links compatible paths to individual repository findings. Milestone D will cover application setup and test planning. The default investigation will cover the entire checkout, with an optional component filter. Each finding will retain its identity, evidence, and the reason it stopped or advanced. Each row is a reviewable milestone that can be split into focused PRs.
 
 | Milestone | What it will add | Acceptance gate |
 | --- | --- | --- |

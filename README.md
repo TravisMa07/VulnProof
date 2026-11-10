@@ -65,7 +65,7 @@ Today, dynamic validation runs reviewed fixtures in prepared images with restric
 
 ## Roadmap
 
-Repository intake now accepts a checkout and embedded SARIF 2.1.0 results from multiple producers. A local Semgrep scan can now produce that same inventory from source. The investigate command can trace Python paths in the captured source. Subsequent milestones will link paths to findings and add application setup and authorized container tests. The expansion checkpoint will use the same installed build and validator on a second compatible repository with application configuration. The four-pair CWE-22 benchmark will follow that demonstration. See the [active expansion sequence and acceptance gates](docs/roadmap.md#active-expansion).
+Repository intake now accepts a checkout and embedded SARIF 2.1.0 results from multiple producers. A local Semgrep scan can now produce that same inventory from source. The investigate command can trace Python paths in the captured source. The correlate-repository command links compatible paths to findings and records an outcome for each SARIF occurrence. Subsequent milestones will add application setup and authorized container tests. The expansion checkpoint will use the same installed build and validator on a second compatible repository with application configuration. The four-pair CWE-22 benchmark will follow that demonstration. See the [active expansion sequence and acceptance gates](docs/roadmap.md#active-expansion).
 
 The [original MVP plan](docs/mvp.md) documents the fixture baseline, evidence semantics, security controls, and benchmark methodology.
 The [CWE-22 feasibility experiment](docs/cwe22-feasibility.md) covers the initial

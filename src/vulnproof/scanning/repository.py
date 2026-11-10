@@ -12,7 +12,7 @@ from vulnproof.intake import Inventory, inventory
 from vulnproof.models.common import relative_path
 from vulnproof.provenance.filesystem import excluded, open_root, scan_tree
 from vulnproof.provenance.git import checkout_head
-from vulnproof.provenance.models import fingerprint
+from vulnproof.provenance.models import CapturedFile, fingerprint
 
 from .engine import scan_profile, scanner_environment
 from .models import MAX_DOCUMENT_BYTES, MAX_SARIF_BYTES, VERSION, ScanCommand, ToolPreparation
@@ -41,8 +41,11 @@ def successful_invocation(inv: Inventory) -> bool:
     )
 
 
-def scan_repository(repo: Path, component: str | None, output: Path, environment: Path) -> str:
-    repo, output, environment = repo.absolute(), output.absolute(), environment.absolute()
+def capture_repository(
+    repo: Path, component: str | None, output: Path
+) -> tuple[tuple[CapturedFile, ...], list[str]]:
+    if output.resolve().is_relative_to(repo.resolve()):
+        raise ScanFailure("invalid_layout", "Output must be outside checkout")
     if component is not None:
         try:
             relative_path(component)
@@ -52,6 +55,21 @@ def scan_repository(repo: Path, component: str | None, output: Path, environment
             ) from exc
         if excluded(component):
             raise ScanFailure("excluded_component", "Component is excluded from capture")
+    selected = repo / (component or "")
+    snapshot = output / "snapshot"
+    with open_root(selected) as descriptor:
+        output.mkdir(mode=0o700)
+        destination = snapshot / (component or "")
+        destination.mkdir(parents=True)
+        tree = scan_tree(descriptor, destination)
+    manifest = tuple(
+        f.model_copy(update={"path": str(Path(component or "") / f.path)}) for f in tree.files
+    )
+    return manifest, [str(Path(component or "") / p) for p in tree.excluded_paths]
+
+
+def scan_repository(repo: Path, component: str | None, output: Path, environment: Path) -> str:
+    repo, output, environment = repo.absolute(), output.absolute(), environment.absolute()
     if any(
         a.resolve().is_relative_to(b.resolve())
         for a, b in (
@@ -73,18 +91,10 @@ def scan_repository(repo: Path, component: str | None, output: Path, environment
         ) from exc
     if prepared.lock_sha256 != scan_profile().lock_sha256:
         raise ScanFailure("stale_scanner", "Prepare Semgrep with the current tool lock")
-    selected = repo / (component or "")
+    manifest, exclusions = capture_repository(repo, component, output)
     snapshot = output / "snapshot"
     work = output / "work"
     targets = work / "source"
-    with open_root(selected) as descriptor:
-        output.mkdir(mode=0o700)
-        destination = snapshot / (component or "")
-        destination.mkdir(parents=True)
-        tree = scan_tree(descriptor, destination)
-    manifest = tuple(
-        f.model_copy(update={"path": str(Path(component or "") / f.path)}) for f in tree.files
-    )
     for directory in (
         "diagnostics",
         "work/source",
@@ -116,7 +126,7 @@ def scan_repository(repo: Path, component: str | None, output: Path, environment
         "observed_checkout_head": checkout_head(repo),
         "source_fingerprint": fingerprint(manifest),
         "files": [f.model_dump() for f in manifest],
-        "excluded_paths": [str(Path(component or "") / p) for p in tree.excluded_paths],
+        "excluded_paths": exclusions,
         "target_paths": [f.path for f in eligible],
         "outcome": "failed",
     }
