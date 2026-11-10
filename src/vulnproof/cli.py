@@ -21,6 +21,7 @@ from .provenance import CaptureFailure, capture_source, verify_capture
 from .reporting import ReportFailure, write_report
 from .runner import RunnerFailure, run_diagnostics
 from .scanning import ScanFailure, scan_fixture, verify_scan
+from .scanning.repository import scan_repository
 from .static import AnalysisFailure, analyze_capture
 from .validation import validate
 
@@ -114,6 +115,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         action="store_true",
         help="Authorize only the reviewed fixture diagnostic operation",
     )
+    repository = commands.add_parser("scan", help="Scan a checkout with the reviewed Semgrep rules")
+    repository.add_argument("--component", help="Optional repository-relative directory")
+    for flag in ("repo", "semgrep-environment", "output"):
+        repository.add_argument("--" + flag, type=Path, required=True)
     scan = commands.add_parser("scan-fixture", help="Run pinned Semgrep on reviewed fixture bytes")
     scan.add_argument("--source-root", type=Path, required=True)
     scan.add_argument("--semgrep-environment", type=Path, required=True)
@@ -160,6 +165,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     try:
+        if args.command == "scan":
+            outcome = scan_repository(
+                args.repo, args.component, args.output, args.semgrep_environment
+            )
+            print(json.dumps({"status": outcome, "receipt": str(args.output / "scan.json")}))
+            return int(outcome != "completed")
         if args.command == "intake":
             inv = inventory(_read_input(args.sarif), args.repo, args.component)
             content = json.dumps(asdict(inv), ensure_ascii=False, indent=2) + "\n"
@@ -424,7 +435,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 file=sys.stderr,
             )
             return 130
-        if args.command == "scan-fixture":
+        if args.command in ("scan", "scan-fixture"):
             print(
                 "scan_interrupted: Scanner stopped; see retained failed receipt where available",
                 file=sys.stderr,
