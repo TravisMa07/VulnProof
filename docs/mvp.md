@@ -1,6 +1,6 @@
-# VulnProof MVP Plan (v0.1)
+# Original MVP plan (v0.1)
 
-The initial implementation of the broader [VulnProof vision](../README.md): a local-first hybrid exploitability validation engine for Python Flask applications.
+This plan records VulnProof's original fixture-based implementation baseline for Python Flask applications. The reviewed CWE-22 pair now exercises the pipeline from scanner finding to evidence report and will continue to serve as regression coverage during the whole-repository expansion. The milestones and support matrix below describe the original targets. For the current delivery order, follow the [active expansion roadmap](roadmap.md#active-expansion).
 
 ## Purpose
 
@@ -109,7 +109,7 @@ Complete CWE-22 end to end before adding CWE-78.
 
 ## Verification and benchmark plan
 
-Begin with four vulnerable/patched fixture pairs per CWE, covering direct flow, helper functions, branching, and relevant normalization or quoting boundaries. Keep benchmark ground truth independent of engine results and include unsupported and operational-failure cases.
+The original benchmark design calls for four vulnerable/patched fixture pairs per CWE, covering direct flow, helper functions, branching, and relevant normalization or quoting boundaries. Keep benchmark ground truth independent of engine results and include unsupported and operational-failure cases.
 
 Test SARIF parsing, source identity, stale artifacts, sink correlation, plan validation, unauthorized execution rejection, oracle controls, fresh nonces, resource limits, network denial, cleanup, report escaping, and output schemas.
 
@@ -134,7 +134,7 @@ The initial Python and development-tool versions are pinned in the project confi
 
 `ingest`, `analyze`, `plan`, `validate`, `report`, and `benchmark`.
 
-These are proposed interfaces only. Installation and usage instructions will be added once runnable functionality exists.
+These stage names came from the original proposal. For executable commands and setup, see the [current CLI workflow](../README.md#current-cli-workflow).
 
 ## Technical references
 

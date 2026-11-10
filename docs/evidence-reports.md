@@ -142,5 +142,6 @@ artifacts, safe reads, limits, previews, CLI behavior, and publication failure.
 The existing real CWE-22 integration also generates a report and checks that its
 recorded confirmation and retained artifact integrity are preserved.
 
-Batch summaries, HTML customization, revision comparisons, remediation tickets, and
-a dashboard remain outside this PR. CWE-22 benchmark expansion is the next roadmap item.
+The next milestone will account for findings across an unfamiliar checkout. The
+[active expansion roadmap](roadmap.md#active-expansion) gives its acceptance gate
+and places the four-pair benchmark after cross-repository validation.

@@ -37,8 +37,8 @@ It requires `confirmed`, repeats validation without a supplied scan association 
 require `inconclusive` despite observed disclosure, and checks that the two attempts
 used different containers and fresh canary bytes. It then checks the patched driver independently with a
 legitimate control and two 404 observations, without constructing a patched scanner
-finding or emitting a patched assessment. These checks are not the expanded PR 12
-benchmark or a broad coverage claim.
+finding or emitting a patched assessment. These checks cover the original pair.
+The planned four-pair benchmark follows the [cross-repository checkpoint](roadmap.md#cross-repository-checkpoint).
 
 To validate an existing plan, select its occurrence ID:
 
@@ -124,5 +124,5 @@ storage; artifact checking detects inconsistent edits, not coherent forgery.
 
 The default test suite uses authored tool responses and requires no external tools.
 A separate trusted same-repository/main CI job runs real tools and containers, with
-read-only repository permissions and bounded diagnostic retention. HTML reports,
-four-pair benchmarks, broader patterns, and CWE-78 remain later roadmap items.
+read-only repository permissions and bounded diagnostic retention. The reporting
+command renders the retained validation result as [JSON and HTML](evidence-reports.md).

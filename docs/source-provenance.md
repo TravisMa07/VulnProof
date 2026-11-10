@@ -75,8 +75,7 @@ not an archive of every repository file or a claim about application dependencie
 Choose a narrow root: included `.env` files and other sensitive content are copied
 verbatim, without redaction. No secret discovery, Git clone, checkout, dependency
 installation, build hook, application import, container, or network request is part
-of source capture. Runtime execution remains restricted to reviewed fixtures in
-later roadmap stages.
+of source capture. The current [validation command](cwe22-validation.md) executes reviewed fixtures.
 
 ## Content identity
 

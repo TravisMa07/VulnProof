@@ -2,6 +2,8 @@
 
 VulnProof is a local-first security platform being developed to turn vulnerability findings into reproducible evidence. It combines static analysis with controlled dynamic testing to help teams investigate exploitability, prioritize remediation, and deliver developer-ready findings.
 
+The goal is to point VulnProof at an unfamiliar repository and investigate findings across the entire checkout. A user can provide an existing SARIF report or have VulnProof scan the repository with Semgrep. For each finding, VulnProof aims to trace relevant data flow with CodeQL, exercise supported behavior in an authorized container test, and report what the evidence establishes. Users can narrow an investigation to a component when useful.
+
 ## Why VulnProof
 
 Security scanners can produce more findings than teams can manually investigate. A finding identifies a potential issue, but developers still need to understand whether attacker-controlled input can reach the relevant code, whether the behavior can be reproduced, and what evidence supports remediation.
@@ -10,23 +12,25 @@ VulnProof aims to help application security engineers, vulnerability researchers
 
 ## Intended workflow
 
+An engineer clones a document service and supplies its SAST report. VulnProof will resolve the reported locations against the checkout and investigate every finding. With just the checkout, the engineer will be able to start the same investigation by asking VulnProof to run Semgrep.
+
 ```text
-Ingest findings
-      |
-Correlate source and revision
-      |
-Analyze modeled source-to-sink reachability
-      |
-Produce structured validation plans
-      |
-Run authorized, isolated tests
-      |
-Correlate static and dynamic evidence
-      |
-Generate reports and remediation artifacts
+Checkout + existing SARIF       Checkout scanned with Semgrep
+                       \       /
+                        Findings
+                           |
+              Identify source and revision
+                           |
+             Correlate applicable CodeQL paths
+                           |
+           Plan how to exercise each finding
+                           |
+          Run an authorized, isolated test when ready
+                           |
+       Report every finding, its evidence, and any stopping reason
 ```
 
-Each stage is intended to preserve the relationship between a finding, its exact source snapshot, the analysis performed, and the behavior observed. Developer-ready outputs should explain the affected code, reproduction conditions, supporting evidence, and limitations.
+For one file-read alert, CodeQL might trace a download parameter to a file read. If an authorized container test then returns the contents of a controlled file outside the download folder, the engineer will see both the modeled path and the observed disclosure. A second finding might have a path but require a test account before the application can be exercised. A third might refer to a file missing from the checkout. All three will appear in the investigation, with the last completed stage and the evidence or prerequisite that determined the outcome.
 
 ## Long-term direction
 
@@ -57,31 +61,25 @@ Static state, execution state, and final classification will remain distinct. Un
 
 The intended model combines local-first processing, explicit execution authorization, bounded tests, isolation, and auditable evidence. Findings and source content are untrusted inputs; they must never supply arbitrary executable test instructions or bypass execution policy.
 
-The initial release will execute only reviewed fixtures using allowlisted templates, pinned images, restricted networking, resource limits, and controlled temporary storage. It will exclude host secrets and Docker socket mounts, and require cleanup after every outcome.
-
-Future onboarding of authorized applications will require additional controls for preparation, dependencies, application state, and execution. Authorization alone does not establish isolation. VulnProof does not promise safe execution of arbitrary repositories or universal exploit generation.
+Today, dynamic validation runs reviewed fixtures in prepared images with restricted networking, bounded resources, and cleanup checks. Onboarding an unfamiliar application will require isolated preparation, a source-bound image, explicit authorization, and a test plan that accounts for dependencies, application state, and secrets.
 
 ## Roadmap
 
-| Stage | Planned outcome |
-| --- | --- |
-| 1. Establish the MVP | CLI-first Python/Flask validation on trusted vulnerable and patched fixtures. Start with CWE-22 path traversal, then CWE-78 command injection; produce JSON/HTML reports and benchmark results. Semgrep SARIF, CodeQL Python taint paths, and Docker are the initial implementation choices. |
-| 2. Expand validated coverage | Add vulnerability classes and scanner, language, and framework adapters as their analysis models, test strategies, and benchmarks mature. |
-| 3. Support authorized applications and workflows | Develop controlled application onboarding and integrations that deliver evidence into developer and security workflows. |
+The next milestone will accept a checkout and SARIF reports from multiple producers. Subsequent milestones will add whole-checkout scanning, CodeQL investigation, application setup, and authorized container tests. The expansion checkpoint will use the same installed build and validator on a second compatible repository with application configuration. The four-pair CWE-22 benchmark will follow that demonstration. See the [active expansion sequence and acceptance gates](docs/roadmap.md#active-expansion).
 
-The first implementation remains deliberately bounded. Dashboards, LLM integration, arbitrary repository execution, additional languages, and general request synthesis are outside v0.1. Dashboards and LLM integration are not established roadmap commitments.
-
-See the [MVP plan](docs/mvp.md) for the initial support matrix, validation approaches, security restrictions, milestones, acceptance criteria, benchmark methodology, dependencies, and proposed CLI stages.
-Follow the [implementation roadmap](docs/roadmap.md) for the agreed sequence of focused PRs and review checkpoints.
+The [original MVP plan](docs/mvp.md) documents the fixture baseline, evidence semantics, security controls, and benchmark methodology.
 The [CWE-22 feasibility experiment](docs/cwe22-feasibility.md) covers the initial
 reviewed fixture pair, static-path check, and restricted container checks.
 The [evidence contracts](docs/evidence-contracts.md) describe the versioned records,
 source bindings, observation states, and assessment validation boundaries.
 
-## Import scanner findings
+## Current CLI workflow
 
-After the [development setup](CONTRIBUTING.md#development-environment), import a
-local Semgrep SARIF 2.1.0 report:
+The importer supports a subset of Semgrep SARIF 2.1.0. Controlled scanning, CodeQL analysis, and dynamic validation currently use the reviewed CWE-22 Flask fixture pair. The commands below demonstrate that workflow using a Semgrep report for the vulnerable fixture.
+
+### Import scanner findings
+
+Follow the [development setup](CONTRIBUTING.md#development-environment), then import the report.
 
 ```sh
 uv run --locked vulnproof ingest --sarif findings.sarif --output ingestion.json
@@ -95,6 +93,7 @@ limits, and examples. No scanner installation is needed to import existing repor
 Capture the selected source tree for investigation, then check the stored content:
 
 ```sh
+mkdir -p .cache
 uv run --locked vulnproof capture --ingestion ingestion.json \
   --source-root fixtures/cwe22/vulnerable --output .cache/investigation-001
 uv run --locked vulnproof verify-source --capture .cache/investigation-001/snapshot
