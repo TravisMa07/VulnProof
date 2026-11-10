@@ -23,6 +23,7 @@ from .runner import RunnerFailure, run_diagnostics
 from .scanning import ScanFailure, scan_fixture, verify_scan
 from .scanning.repository import scan_repository
 from .static import AnalysisFailure, analyze_capture
+from .static.repository import investigate
 from .validation import validate
 
 
@@ -74,6 +75,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     verify.add_argument(
         "--capture", type=Path, required=True, help="Published output/snapshot directory"
     )
+    investigation = commands.add_parser(
+        "investigate", help="Trace modeled paths in a repository scan snapshot"
+    )
+    for flag in ("scan", "output", "codeql-bundle"):
+        investigation.add_argument("--" + flag, type=Path, required=True)
     analyze = commands.add_parser(
         "analyze", help="Analyze an approved fixture capture with pinned CodeQL"
     )
@@ -361,13 +367,17 @@ def main(argv: Sequence[str] | None = None) -> int:
                 )
             )
             return 0
-        if args.command == "analyze":
+        if args.command in ("analyze", "investigate"):
 
             def terminate(signum: int, frame: object) -> None:
                 raise KeyboardInterrupt
 
             previous = signal.signal(signal.SIGTERM, terminate)
             try:
+                if args.command == "investigate":
+                    investigation_report = investigate(args.scan, args.output, args.codeql_bundle)
+                    print(investigation_report.model_dump_json(include={"outcome", "diagnostics"}))
+                    return int(investigation_report.outcome != "completed")
                 report = analyze_capture(args.capture, args.output, args.codeql_bundle)
             finally:
                 signal.signal(signal.SIGTERM, previous)
@@ -447,7 +457,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 file=sys.stderr,
             )
             return 130
-        if args.command != "analyze":
+        if args.command not in ("analyze", "investigate"):
             raise
         print(
             "analysis_interrupted: Process group stopped; retained report is failed",

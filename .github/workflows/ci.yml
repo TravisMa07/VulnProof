@@ -99,7 +99,8 @@ jobs:
       - name: Verify repository scans with the prepared Semgrep installation
         env:
           VULNPROOF_TEST_SEMGREP: ${{ github.workspace }}/.cache/semgrep/1.184.0
-        run: uv run --locked pytest tests/test_repository_scan.py
+          VULNPROOF_TEST_CODEQL: ${{ github.workspace }}/.cache/codeql/2.27.3/codeql
+        run: uv run --locked pytest tests/test_repository_scan.py tests/test_repository_investigation.py
       - name: Verify real scanner and static path association
         run: uv run --locked python scripts/check_controlled_scan.py
       - name: Retain bounded diagnostic evidence

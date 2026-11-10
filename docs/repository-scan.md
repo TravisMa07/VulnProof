@@ -22,4 +22,17 @@ The v1 ruleset checks two patterns. In `.py` files it follows a request query va
 - `diagnostics/raw.sarif` feeds the same [inventory](repository-intake.md) as an imported report. `inventory.json` resolves locations against the private capture. Its generic source association stays unverified. The separate controlled scan receipt binds this invocation to its inputs and raw SARIF digest. The scanner's JSON coverage, logs and rules are retained alongside the snapshot.
 - Exit 0 means the scanner completed on eligible targets and intake completed. Zero findings means these rules reported no matches. Exit 1 means incomplete coverage or intake (`partial`), or no eligible files (`no_applicable_targets`). Inspect scanner notifications and errors in the diagnostics. Exit 2 reports a failure such as invalid input, capture limits, or scanner failure. A failure before the scanner starts can leave a partial output directory. Use a fresh directory for a retry.
 
-CodeQL investigation of these repository findings belongs to Milestone C. Dynamic validation currently runs only on approved fixtures.
+Dynamic validation currently runs only on approved fixtures.
+
+## Investigate a captured checkout with CodeQL
+
+Prepare the trusted CodeQL bundle using the [CodeQL setup instructions](codeql-analysis.md). Run the following command against the directory produced by a repository scan.
+
+```sh
+uv run --locked vulnproof investigate --scan /path/to/new-scan \
+  --codeql-bundle .cache/codeql/2.27.3/codeql --output /path/to/new-investigation
+```
+
+The command checks the captured files against the scan receipt, copies them into a private working directory, and extracts one Python database with build mode set to none. It runs the bundled Python path-injection query once and records repository-relative path nodes in `investigation.json`. The report includes the component, source fingerprint, scan receipt hash, tool and query identity, commands, diagnostics, and raw SARIF reference. Component captures limit analysis to that subtree. Local artifact hashes establish consistency with the supplied receipt and assume the operator trusts its origin.
+
+Exit 0 means analysis and normalization completed, including when the query returned zero paths. Exit 1 covers partial normalization, an unsupported snapshot without Python files, or a failed attempt. Exit 2 indicates rejected input or an output setup error. See the report and diagnostic logs for the reason. A modeled path records static evidence. Linking it to an individual scanner finding belongs to C2.
