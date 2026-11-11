@@ -23,6 +23,7 @@ from .planning.repository import plan_repository
 from .provenance import CaptureFailure, capture_source, verify_capture
 from .reporting import ReportFailure, write_report
 from .runner import RunnerFailure, run_diagnostics
+from .runner.repository import prepare_repository_image
 from .scanning import ScanFailure, scan_fixture, verify_scan
 from .scanning.repository import scan_repository
 from .static import AnalysisFailure, analyze_capture
@@ -99,6 +100,12 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     for flag in ("scan", "investigation", "correlation", "output"):
         discovery.add_argument("--" + flag, type=Path, required=True)
+    image_preparation = commands.add_parser(
+        "prepare-repository-image",
+        help="Prepare a source-bound image without starting the application",
+    )
+    for flag in ("scan", "config", "wheelhouse", "docker-socket", "output"):
+        image_preparation.add_argument("--" + flag, type=Path, required=True)
     repo_plan = commands.add_parser(
         "plan-repository", help="Draft validation plans from repository discovery"
     )
@@ -201,6 +208,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     try:
+        if args.command == "prepare-repository-image":
+
+            def preparation_terminate(signum: int, frame: object) -> None:
+                raise KeyboardInterrupt
+
+            previous = signal.signal(signal.SIGTERM, preparation_terminate)
+            try:
+                prepare_repository_image(
+                    args.scan, args.config, args.wheelhouse, args.docker_socket, args.output
+                )
+            finally:
+                signal.signal(signal.SIGTERM, previous)
+            print(f"Prepared image receipt: {args.output / 'prepared-image.json'}")
+            return 0
         if args.command == "plan-repository":
             if any(
                 args.output.resolve().is_relative_to(root.resolve())
@@ -502,6 +523,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"{exc.code}: {exc}", file=sys.stderr)
         return 2
     except KeyboardInterrupt:
+        if args.command == "prepare-repository-image":
+            print("preparation_interrupted: See retained preparation diagnostics", file=sys.stderr)
+            return 130
         if args.command == "validate":
             print(
                 "validation_interrupted: Cleanup attempted; retain attempt and reservation for recovery",

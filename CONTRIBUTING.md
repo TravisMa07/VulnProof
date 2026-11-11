@@ -72,6 +72,10 @@ see [evidence reports](docs/evidence-reports.md). Its tests require no external 
 When changing the report contract, regenerate `schemas/report-v1.schema.json` using
 `scripts/export_report_schema.py` and review its diff.
 
+The `prepare-repository-image` command builds source-bound images using a controlled
+recipe and declared wheel hashes; see [repository image preparation](docs/repository-images.md).
+Default tests do not require Docker. Application startup remains a separate stage.
+
 ## Required checks
 
 Run the same checks locally as CI:

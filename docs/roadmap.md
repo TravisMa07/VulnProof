@@ -7,7 +7,7 @@ Split an item if it becomes too large to review; do not combine unrelated items.
 
 ## Active expansion
 
-Milestones A and B provide repository intake and scanning. C1 investigates repository scan snapshots with CodeQL. C2 links compatible paths to individual repository findings. D1 discovers direct Flask request bindings on correlated paths. D2 combines those observations with operator configuration to draft per-finding validation plans. Milestone E will prepare and run authorized application tests. The default investigation will cover the entire checkout, with an optional component filter. Each finding will retain its identity, evidence, and the reason it stopped or advanced. Each row is a reviewable milestone that can be split into focused PRs.
+Milestones A and B provide repository intake and scanning. C1 investigates repository scan snapshots with CodeQL. C2 links compatible paths to individual repository findings. D1 discovers direct Flask request bindings on correlated paths. D2 combines those observations with operator configuration to draft per-finding validation plans. E1 prepares source-bound application images from operator-declared wheels. E2 will start those applications and check legitimate controls; E3 will run supported validation and integrate reports. The default investigation will cover the entire checkout, with an optional component filter. Each finding will retain its identity, evidence, and the reason it stopped or advanced. Each row is a reviewable milestone that can be split into focused PRs.
 
 | Milestone | What it will add | Acceptance gate |
 | --- | --- | --- |
@@ -17,6 +17,19 @@ Milestones A and B provide repository intake and scanning. C1 investigates repos
 | D. Application setup and test planning | Use project metadata and tests to identify startup instructions, entry points, inputs, and prerequisites. Let the operator supply missing setup through application configuration. | An inspectable plan will describe how to exercise a supported finding or identify the missing prerequisite, such as a test account or input binding. |
 | E. Authorized container validation | Bind the prepared image to the captured source. Reuse the CWE-22 validator to run a legitimate control and bounded probes, retain observations, verify cleanup, and report the assessment. | Pass the cross-repository checkpoint below. |
 | F. Benchmark and expand coverage | Run the four-pair CWE-22 fixture benchmark alongside unfamiliar-repository cases. Count findings imported, paths correlated, applications runnable, tests completed, and outcomes with their denominators. | Three fresh repetitions will confirm each supported vulnerable fixture, yield zero patched confirmations, and retain reasons for unsupported cases and operational failures. Stage counts and evidence will guide the next scanner, application, or vulnerability class to support. |
+
+### Milestone E PR sequence
+
+- **E1: repository image preparation.** Build the captured application with the installed
+  recipe and explicit hashed wheels; retain source/configuration/recipe identity and
+  immutable image ID. No application startup or execution authorization. See
+  [repository image preparation](repository-images.md).
+- **E2: application controls.** Revalidate image and plan identity, obtain execution
+  authorization, start the application under restrictions, and verify the planned
+  legitimate request. Preserve startup and control failure reasons.
+- **E3: validation and reports.** Reuse the supported CWE-22 test semantics, correlate
+  observations with evidence, and expose outcomes in reports. Demonstrate the
+  cross-repository checkpoint before F.
 
 ### Cross-repository checkpoint
 
