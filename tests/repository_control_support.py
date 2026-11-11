@@ -48,6 +48,7 @@ def control_inputs(
         "missing_symbol": "del service\n",
         "request_timeout": "@service.before_request\ndef delay():\n    import time\n    time.sleep(10)\n",
         "patched": "@service.before_request\ndef restrict():\n    if request.args.get('document') != 'manual.txt':\n        from flask import abort\n        abort(404)\n",
+        "fixed_query": "@service.before_request\ndef require_fixed():\n    from flask import abort\n    if request.args.get('model') != 'demo & ü' or request.args.get('version') != '':\n        abort(400)\n",
         "noise": "print('application stdout is separate')\n",
         "flood": "print('x' * (2 * 1024 * 1024), flush=True)\n",
     }
@@ -168,6 +169,14 @@ def control_inputs(
             }
         )
     )
+    if mode == "fixed_query":
+        settings = json.loads(config.read_bytes())
+        settings["schema_version"] = "1.1"
+        settings["endpoints"][0]["fixed_query"] = [
+            {"name": "model", "value": "demo & ü"},
+            {"name": "version", "value": ""},
+        ]
+        config.write_text(json.dumps(settings))
     plan.write_text(plan_repository(scan, analysis, links, discovery, config))
     data = json.loads(plan.read_bytes())
     row = data["findings"][0]

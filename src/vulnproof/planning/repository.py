@@ -7,7 +7,7 @@ from pathlib import Path, PurePosixPath
 from typing import Annotated, Any, Literal
 from urllib.parse import urlencode
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
 from vulnproof.artifacts import read_local
 from vulnproof.correlation.engine import MAX_DOCUMENT_BYTES
@@ -15,12 +15,18 @@ from vulnproof.correlation.repository import digest, document
 from vulnproof.discovery.repository import discover
 from vulnproof.models.common import Contract, RelativePath, Sha256, relative_path
 from vulnproof.provenance.models import fingerprint
+from vulnproof.runner.control_driver import request_target
 from vulnproof.static.repository import ScanInput
 
 from .engine import PlanningFailure, planning_catalog
 
 Name = Annotated[str, Field(min_length=1, max_length=256)]
 FIELDS = ("entry_point", "method", "route", "query_key")
+
+
+class FixedQuery(Contract):
+    name: Name
+    value: str = Field(max_length=4096)
 
 
 class Endpoint(Contract):
@@ -33,6 +39,7 @@ class Endpoint(Contract):
     download_root: Name | None = None
     control_value: Name | None = None
     control_sha256: Sha256 | None = None
+    fixed_query: tuple[FixedQuery, ...] | None = Field(default=None, max_length=64)
 
     @field_validator("entry_point")
     @classmethod
@@ -67,8 +74,19 @@ class Endpoint(Contract):
 
 
 class Configuration(Contract):
-    schema_version: Literal["1.0"]
+    schema_version: Literal["1.0", "1.1"]
     endpoints: tuple[Endpoint, ...] = Field(max_length=256)
+
+    @model_validator(mode="after")
+    def versioned_parameters(self) -> Configuration:
+        for endpoint in self.endpoints:
+            if endpoint.fixed_query is not None:
+                if self.schema_version != "1.1":
+                    raise ValueError("Fixed query parameters require configuration 1.1")
+                names = [p.name for p in endpoint.fixed_query]
+                if len(set(names)) != len(names) or endpoint.query_key in names:
+                    raise ValueError("Duplicate or conflicting fixed query parameter")
+        return self
 
 
 def unique_fields(pairs: list[tuple[str, object]]) -> dict[str, object]:
@@ -215,6 +233,17 @@ def disposition(
             "runtime_oracle_required",
         ],
     )
+    if profile.fixed_query is not None:
+        assert profile.control_value is not None
+        request = {
+            "schema_version": "1.0",
+            "route": route,
+            "query_key": query_key,
+            "fixed_query": [p.model_dump() for p in profile.fixed_query],
+            "control_value": profile.control_value,
+        }
+        out["control"]["request_target"] = request_target(request, profile.control_value)
+        out["http_request"] = request
     return out
 
 
@@ -254,6 +283,9 @@ def plan_repository(
         return document(
             {
                 **rebuilt,
+                "schema_version": "1.1"
+                if raw_config and json.loads(raw_config)["schema_version"] == "1.1"
+                else "1.0",
                 "findings": rows,
                 "counts": Counter(r["status"] for r in rows),
                 "discovery_sha256": digest(supplied),

@@ -15,7 +15,7 @@ from vulnproof.planning.engine import planning_catalog
 from vulnproof.planning.models import ExecutionRequirements
 from vulnproof.planning.repository import plan_repository, unique_fields
 
-from .control_driver import CHECKS, RESPONSE_LIMIT
+from .control_driver import CHECKS, RESPONSE_LIMIT, request_target
 from .docker import DockerClient, RunnerFailure
 from .engine import cleanup_container, inspection, publish
 from .models import DockerCommand
@@ -72,7 +72,7 @@ class ControlObservation(Contract):
 
 
 class RepositoryControlAttempt(Contract):
-    schema_version: Literal["1.0"] = "1.0"
+    schema_version: Literal["1.0", "1.1"] = "1.0"
     profile: Literal["repository-control-v1", "repository-validation-attempt-v1"] = (
         "repository-control-v1"
     )
@@ -92,6 +92,7 @@ class RepositoryControlAttempt(Contract):
         "repository_control_only"
     )
     request: dict[str, str]
+    http_request: dict[str, Any] | None = None
     requested: ExecutionRequirements
     policy_verified: bool
     execution: Literal[
@@ -103,6 +104,19 @@ class RepositoryControlAttempt(Contract):
     driver: ControlObservation | None
     commands: tuple[DockerCommand, ...]
     reasons: tuple[Reason, ...]
+
+    @model_validator(mode="after")
+    def request_profile(self) -> Self:
+        if (self.schema_version == "1.1") != (self.http_request is not None):
+            raise ValueError("Request profile requires attempt schema 1.1")
+        if self.http_request is not None:
+            target = request_target(self.http_request, self.http_request.get("control_value", ""))
+            if target != self.request.get("request_target"):
+                raise ValueError("Control request differs from request profile")
+            for key in ("route", "query_key"):
+                if key in self.request and self.request[key] != self.http_request[key]:
+                    raise ValueError("Request binding differs from profile")
+        return self
 
     @property
     def succeeded(self) -> bool:
@@ -212,6 +226,8 @@ def check_repository(
                 query_key=entry["query_key"],
             )
         driver_request: dict[str, Any] = dict(request)
+        if entry.get("http_request") is not None:
+            driver_request["http_request"] = entry["http_request"]
         if authorize_validation:
             driver_request.update(
                 validation=True,
@@ -340,6 +356,8 @@ def check_repository(
                     )
                 )
         report = RepositoryControlAttempt(
+            schema_version="1.1" if entry.get("http_request") is not None else "1.0",
+            http_request=entry.get("http_request"),
             profile="repository-validation-attempt-v1"
             if authorize_validation
             else "repository-control-v1",

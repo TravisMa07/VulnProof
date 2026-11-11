@@ -71,6 +71,13 @@ def runtime(detail: ValidationDetail) -> str:
     if attempt is None:
         sections.append("<p>No runtime attempt was retained. See the planning reasons.</p>")
     else:
+        if attempt.http_request is not None:
+            sections.append(
+                "<p>Varied query parameter: <strong>"
+                + text(attempt.http_request["query_key"])
+                + "</strong>. Fixed parameters are preserved in every request.</p>"
+            )
+            sections.append(details("Structured GET request", attempt.http_request))
         driver = attempt.driver
         steps: list[tuple[str, object]] = [
             (

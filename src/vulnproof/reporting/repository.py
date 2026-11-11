@@ -9,6 +9,7 @@ from pydantic import BaseModel, Field
 from vulnproof.artifacts import read_local
 from vulnproof.models.common import Contract, Sha256
 from vulnproof.planning.repository import plan_repository, unique_fields
+from vulnproof.runner.controls import RepositoryControlAttempt
 from vulnproof.runner.repository import sha
 from vulnproof.static.repository import Investigation, ScanInput
 from vulnproof.validation.repository import RepositoryValidation, classify
@@ -39,7 +40,7 @@ class PlanRow(BaseModel):
 
 
 class RetainedPlan(BaseModel):
-    schema_version: Literal["1.0"]
+    schema_version: Literal["1.0", "1.1"]
     source_fingerprint: Sha256
     scanner_source_state: Literal["controlled_snapshot", "unverified"]
     paths: dict[str, Any]
@@ -103,7 +104,7 @@ def prepare_repository_report(
         retained = document(raw)
         rows = retained["findings"]
         if (
-            retained["schema_version"] != "1.0"
+            retained["schema_version"] not in ("1.0", "1.1")
             or not isinstance(rows, list)
             or not isinstance(retained["paths"], dict)
         ):
@@ -245,12 +246,17 @@ def prepare_repository_report(
                     or attempt.profile != "repository-validation-attempt-v1"
                 ):
                     notes.append("Embedded attempt identity disagrees with the result.")
-                if document(bounded_read(directory / "runtime/attempt.json")) != attempt.model_dump(
-                    mode="json"
+                if (
+                    RepositoryControlAttempt.model_validate_json(
+                        bounded_read(directory / "runtime/attempt.json")
+                    )
+                    != attempt
                 ):
                     notes.append("Retained runtime attempt differs from the embedded attempt.")
                 if selected:
                     row = selected[0]
+                    if attempt.http_request != row.get("http_request"):
+                        notes.append("Request profile differs from the plan.")
                     candidate = row.get("candidates", {}).get(attempt.candidate_result_id)
                     supporting = {s.get("path_id") for s in row.get("support", [])}
                     if (

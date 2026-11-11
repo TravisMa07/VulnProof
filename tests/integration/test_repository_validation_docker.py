@@ -143,3 +143,45 @@ def test_missing_runtime_boundary(tmp_path: Path) -> None:
     assert result.attempt and result.attempt.driver and result.attempt.driver.validation
     assert result.attempt.driver.validation["probes"] == []
     assert result.attempt.cleanup == "verified_absent"
+
+
+def test_real_fixed_query_validation(tmp_path: Path) -> None:
+    from urllib.parse import parse_qsl, urlsplit
+
+    args = prepared_args(tmp_path, "exports/web.py", "fixed_query")
+    args.pop("authorize_execution")
+    result = validate_repository(**args, authorize_validation=True)
+    assert result.reason == "scanner_source_unverified"
+    assert result.attempt and result.attempt.schema_version == "1.1"
+    assert result.attempt.cleanup == "verified_absent" and result.attempt.policy_verified
+    assert result.attempt.driver and result.attempt.driver.validation
+    assert result.attempt.driver.control == "passed"
+    for probe in result.attempt.driver.validation["probes"]:
+        assert probe["status"] == 200
+        pairs = parse_qsl(urlsplit(probe["request_target"]).query, keep_blank_values=True)
+        assert pairs[:2] == [("model", "demo & ü"), ("version", "")]
+
+    # Missing constants fail the legitimate control before any probe.
+    import json
+
+    from vulnproof.planning.repository import plan_repository
+
+    settings = json.loads(args["config"].read_bytes())
+    settings["endpoints"][0].pop("fixed_query")
+    args["config"].write_text(json.dumps(settings))
+    args["plan"].write_text(
+        plan_repository(
+            args["scan"],
+            args["investigation"],
+            args["correlation"],
+            args["discovery"],
+            args["config"],
+        )
+    )
+    args["output"] = tmp_path / "missing-fixed-values"
+    missing = validate_repository(**args, authorize_validation=True)
+    assert missing.classification == "failed"
+    assert missing.attempt and missing.attempt.driver
+    assert missing.attempt.driver.status == 400
+    assert missing.attempt.driver.validation is None
+    assert missing.attempt.cleanup == "verified_absent"

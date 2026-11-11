@@ -111,3 +111,48 @@ E3b [repository reports](repository-reports.md) render repository results and th
 complete investigation flow in offline HTML. E3c will demonstrate vulnerable/patched revisions and a second unfamiliar
 compatible repository with the same installed build. The generated applications
 used here establish the E3a acceptance gate.
+
+## Fixed query parameters
+
+Endpoint configuration schema `1.1` accepts an ordered `fixed_query` list alongside
+`query_key`, `control_value`, and `control_sha256`. For example:
+
+```json
+{
+  "schema_version": "1.1",
+  "endpoints": [{
+    "file": "exports/web.py",
+    "handler": "export",
+    "entry_point": "exports/web.py:service",
+    "download_root": "/application",
+    "query_key": "document",
+    "control_value": "manual.txt",
+    "control_sha256": "REPLACE_WITH_SHA256_OF_LEGITIMATE_RESPONSE",
+    "fixed_query": [
+      {"name": "model", "value": "demo & ü"},
+      {"name": "version", "value": ""}
+    ]
+  }]
+}
+```
+
+The hash above is an explanatory placeholder, not runnable configuration. Route and
+method may be discovered or explicitly supplied under the existing conflict rules.
+The control target is `/export?model=demo+%26+%C3%BC&version=&document=manual.txt`.
+Both bounded probes preserve `model` and `version` and replace only `document`.
+These are ordinary query values, not a credentials or secret-injection mechanism.
+
+Plans from configuration 1.1 use plan schema 1.1. Drafts using fixed parameters retain
+an `http_request` profile (schema 1.0); runtime attempts carrying it use attempt schema
+1.1. Historical configuration, plans and attempts retain their original single-query
+semantics. The HTML report identifies the varied parameter and retains exact targets.
+
+Duplicate names, overlap with the varied parameter, and embedded route queries or
+fragments are rejected. Fixed values may be empty or Unicode. Profiles allow up to
+64 fixed parameters, 256 characters per name, 4,096 characters per fixed value, and
+16,384 characters per encoded request target. Missing application-required values
+can fail the legitimate control; such failures never establish safety.
+
+Rebuild prepared images before using this version: the packaged driver changed.
+The existing preparation receipt binds its hash and rejects stale images. No new
+container permissions, network access, startup hooks, or request methods are enabled.
