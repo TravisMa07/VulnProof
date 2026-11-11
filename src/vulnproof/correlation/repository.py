@@ -44,9 +44,8 @@ def document(value: object) -> str:
 
 
 def snapshot_inventory(raw: bytes, root: Path, component: str | None) -> Inventory:
-    inv = inventory(raw, root, component)
-    inv.checkout_head = None
-    return inv
+    # Captures have no Git identity; avoid spawning Git only to discard its result.
+    return inventory(raw, root, component, inspect_git=False)
 
 
 def prepare_inventory(repo: Path, component: str | None, path: Path, output: Path) -> None:

@@ -22,6 +22,7 @@ from .planning import PlanningFailure, create_plans
 from .planning.repository import plan_repository
 from .provenance import CaptureFailure, capture_source, verify_capture
 from .reporting import ReportFailure, write_report
+from .reporting.repository import write_repository_report
 from .runner import RunnerFailure, run_diagnostics
 from .runner.controls import check_repository
 from .runner.repository import prepare_repository_image
@@ -231,8 +232,35 @@ def main(argv: Sequence[str] | None = None) -> int:
         required=True,
         help="New report directory outside validation evidence",
     )
+    repository_report = commands.add_parser(
+        "report-repository", help="Render an offline repository inventory and evidence flows"
+    )
+    for flag in ("scan", "investigation", "correlation", "discovery", "plan", "output"):
+        repository_report.add_argument("--" + flag, type=Path, required=True)
+    repository_report.add_argument("--config", type=Path)
+    repository_report.add_argument("--validation", type=Path, action="append", default=[])
     args = parser.parse_args(argv)
     try:
+        if args.command == "report-repository":
+            repository_report_result = write_repository_report(
+                scan=args.scan,
+                investigation=args.investigation,
+                correlation=args.correlation,
+                discovery=args.discovery,
+                plan=args.plan,
+                config=args.config,
+                validations=tuple(args.validation),
+                output=args.output,
+            )
+            print(
+                json.dumps(
+                    {
+                        "integrity": repository_report_result.integrity,
+                        "findings": len(repository_report_result.plan["findings"]),
+                    }
+                )
+            )
+            return 0 if repository_report_result.integrity == "verified" else 1
         if args.command == "validate-repository":
 
             def validation_terminate(signum: int, frame: object) -> None:

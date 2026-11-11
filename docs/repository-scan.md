@@ -111,5 +111,5 @@ or authorize execution. [Repository controls](repository-controls.md) provide E2
 startup and legitimate-request checks. E3a adds [repository validation](repository-validation.md).
 
 [Repository validation](repository-validation.md) now provides E3a bounded CWE-22 attempts and JSON
-classifications. Repository HTML integration and the cross-repository demonstration
-are the next E3b/E3c steps.
+classifications. [Repository reports](repository-reports.md) provide offline HTML flows and a
+complete finding inventory. E3c, the cross-repository demonstration, is the next step.
