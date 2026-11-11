@@ -107,4 +107,5 @@ A successful planning command exits 0 even if every occurrence is blocked. Modif
 
 After planning, [repository image preparation](repository-images.md) packages the
 retained snapshot with explicit hashed dependencies. It does not start the application
-or authorize execution; application controls and validation remain E2/E3.
+or authorize execution. [Repository controls](repository-controls.md) provide E2
+startup and legitimate-request checks; supported vulnerability validation remains E3.

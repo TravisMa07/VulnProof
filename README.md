@@ -190,4 +190,6 @@ for development installation, checks, code standards, and the commit/PR workflow
 
 Application images can be prepared from retained repository snapshots using the
 [repository image preparation guide](docs/repository-images.md). Preparation records
-source and dependency identity; application startup and validation remain separate work.
+source and dependency identity. [Repository controls](docs/repository-controls.md)
+start a supported application and verify its planned legitimate response under
+explicit authorization; repository vulnerability validation remains separate work.

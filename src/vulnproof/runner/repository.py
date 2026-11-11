@@ -3,8 +3,9 @@
 import hashlib
 import json
 import re
+from importlib.resources import files
 from pathlib import Path
-from typing import Literal, Self
+from typing import Any, Literal, Self
 
 from pydantic import Field, field_validator, model_validator
 
@@ -60,7 +61,8 @@ class ImageConfiguration(Contract):
 
 
 class RepositoryImage(Contract):
-    schema_version: Literal["1.0"] = "1.0"
+    schema_version: Literal["1.1"] = "1.1"
+    driver_sha256: Sha256
     profile: Literal["repository-image-v1"] = "repository-image-v1"
     scan_sha256: Sha256
     source_fingerprint: Sha256
@@ -80,6 +82,28 @@ def sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def driver_bytes() -> bytes:
+    return files("vulnproof.runner").joinpath("control_driver.py").read_bytes()
+
+
+def verify_repository_image(observed: dict[str, Any], record: RepositoryImage) -> None:
+    config = observed.get("Config")
+    if not isinstance(config, dict) or not isinstance(config.get("Healthcheck"), dict):
+        raise RunnerFailure("image_policy_mismatch", "Missing image configuration")
+    if (
+        observed.get("Id") != record.image_id
+        or f"{observed.get('Os')}/{observed.get('Architecture')}" != record.configuration.platform
+        or config.get("User") != "10001:10001"
+        or config.get("WorkingDir") != "/application"
+        or config.get("Cmd") != COMMAND
+        or config.get("Entrypoint")
+        or config.get("Volumes")
+        or config.get("OnBuild")
+        or config.get("Healthcheck", {}).get("Test") != ["NONE"]
+    ):
+        raise RunnerFailure("image_policy_mismatch", "Prepared image failed configuration checks")
+
+
 def recipe() -> bytes:
     # Install before copying source: Python cannot load checkout modules during installation.
     return (
@@ -91,6 +115,7 @@ def recipe() -> bytes:
         "RUN python -I -m pip --isolated install --no-index --no-deps --no-cache-dir "
         "--only-binary=:all: --require-hashes -r requirements.lock "
         "&& python -I -m pip --isolated check\n"
+        "COPY control_driver.py /opt/vulnproof/control_driver.py\n"
         "COPY source/ /application/\n"
         "WORKDIR /application\n"
         "USER 10001:10001\n"
@@ -156,6 +181,8 @@ def prepare_repository_image(
             for w in selected.wheels
         ).encode()
         build_recipe = recipe()
+        driver = driver_bytes()
+        (context / "control_driver.py").write_bytes(driver)
         (context / "Dockerfile").write_bytes(build_recipe)
         (context / "requirements.lock").write_bytes(requirements)
         client = DockerClient(socket, output, preparation=True)
@@ -178,29 +205,13 @@ def prepare_repository_image(
         image_id = read_local(output, "image.iid", 128).decode("ascii").strip()
         if not re.fullmatch(r"sha256:[0-9a-f]{64}", image_id):
             raise RunnerFailure("invalid_image_id", "Docker did not return an immutable image ID")
-        observed = inspection(client.run(["image", "inspect", image_id], "inspect-image"))
-        image_config = observed.get("Config")
-        if not isinstance(image_config, dict) or not isinstance(
-            image_config.get("Healthcheck"), dict
-        ):
-            raise RunnerFailure("image_policy_mismatch", "Missing image configuration")
-        if (
-            observed.get("Id") != image_id
-            or f"{observed.get('Os')}/{observed.get('Architecture')}" != selected.platform
-            or image_config.get("User") != "10001:10001"
-            or image_config.get("WorkingDir") != "/application"
-            or image_config.get("Cmd") != COMMAND
-            or image_config.get("Entrypoint")
-            or image_config.get("Volumes")
-            or image_config.get("OnBuild")
-            or image_config.get("Healthcheck", {}).get("Test") != ["NONE"]
-        ):
-            raise RunnerFailure(
-                "image_policy_mismatch", "Prepared image failed configuration checks"
-            )
         with open_root(source) as fd:
             after = scan_tree(fd)
-        expected = {"Dockerfile": build_recipe, "requirements.lock": requirements}
+        expected = {
+            "Dockerfile": build_recipe,
+            "requirements.lock": requirements,
+            "control_driver.py": driver,
+        }
         expected.update({"wheels/" + name: data for name, data in wheel_bytes.items()})
         if (
             after.files != manifest.files
@@ -214,6 +225,7 @@ def prepare_repository_image(
         ):
             raise RunnerFailure("preparation_inputs_changed", "Preparation metadata changed")
         record = RepositoryImage(
+            driver_sha256=sha(driver),
             scan_sha256=sha(scan_bytes),
             source_fingerprint=manifest.source_fingerprint,
             configuration_sha256=sha(config_bytes),
@@ -223,6 +235,9 @@ def prepare_repository_image(
             base_image=BASE,
             image_id=image_id,
             entry_point_file=entry_file,
+        )
+        verify_repository_image(
+            inspection(client.run(["image", "inspect", image_id], "inspect-image")), record
         )
         publish(output / "prepared-image.json", record.model_dump_json(indent=2) + "\n")
         outcome = "completed"

@@ -3,7 +3,8 @@
 `vulnproof prepare-repository-image` implements E1: build a source-bound image from
 an existing repository scan/import snapshot. It does not start the application,
 run a control request, execute a vulnerability test, or authorize execution.
-E2 will introduce controlled application startup; E3 will add validation and reports.
+[Repository controls](repository-controls.md) provide separately authorized startup
+and legitimate-request checking; E3 will add validation and reports.
 The existing fixture runner remains unchanged and does not admit these images.
 
 ## Inputs and preparation
@@ -56,8 +57,9 @@ symbol is recorded, not imported or checked for existence. Use the same entry
 point as D2's endpoint profile. Build configuration is separate from D2's endpoint
 configuration: it describes the application image, rather than a particular
 finding, route, or control. E1 does not claim a plan is runnable or verify agreement
-with a supplied plan. The later runner must check entry point and source identity
-against a reconstructed plan before execution.
+with a supplied plan. The control runner checks entry point and source identity
+against a reconstructed plan before execution. E1 schema 1.0 images must be rebuilt
+with this version to include the driver and its receipt hash.
 
 ```sh
 mkdir -p .cache
@@ -99,12 +101,12 @@ entrypoint or healthcheck hook, and a default command that exits without importi
 the application. Inspection checks these settings and the requested Linux
 architecture. It does not prove application readiness or general image safety.
 
-`prepared-image.json` version 1.0 records:
+`prepared-image.json` version 1.1 records:
 
 - Scan receipt hash and captured source fingerprint, without upgrading imported
   scanner revision uncertainty.
 - Configuration bytes hash, entry point, selected platform, and each wheel hash.
-- Installed recipe and generated requirements hashes, pinned base reference, and
+- Packaged control-driver, installed recipe, and generated requirements hashes, pinned base reference, and
   immutable local image ID.
 - `application_started: false` and `execution_authorized: false`.
 

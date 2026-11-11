@@ -96,14 +96,17 @@ if stage == "info":
     print(json.dumps(info))
 elif stage == "image-inspect":
     config={"User":"10001:10001","WorkingDir":"/fixture","Cmd":["python","/fixture/runner_driver.py"],"Entrypoint":None,"Volumes":None,"OnBuild":None,"Healthcheck":None}
+    if control.get("repository"):
+        config.update(WorkingDir="/application", Cmd=control["prepared_command"], Healthcheck={"Test":["NONE"]})
     if control.get("image_bad"): config["Entrypoint"]=["unapproved"]
-    print(json.dumps([{"Id":args[-1],"Os":"linux","Config":config}]))
+    print(json.dumps([{"Id":args[-1],"Os":"linux","Architecture":"arm64","Config":config}]))
 elif stage == "build":
     image="sha256:"+("a" if "vulnerable" in args[-1] else "b")*64
     pathlib.Path(args[args.index("--iidfile")+1]).write_text(image+"\\n")
     print("Synthetic build; no source executed")
 elif stage == "create":
-    state.update(exists=True,name=args[args.index("--name")+1],image=args[-2]); save()
+    image=next(a for a in args if a.startswith("sha256:"))
+    state.update(exists=True,name=args[args.index("--name")+1],image=image,command=args[args.index(image)+1:]); save()
     if control.get("partial_create_sleep"): time.sleep(10)
     if control.get("partial_create"): sys.exit(1)
     print("a"*64)
@@ -111,6 +114,8 @@ elif stage == "container-inspect":
     name=state["name"]
     config={"User":"10001:10001","WorkingDir":"/fixture","Cmd":["/fixture/runner_driver.py"],"Entrypoint":["python"],"Volumes":None,"Healthcheck":{"Test":["NONE"]},"Labels":{"vulnproof.attempt":name}}
     host={"ReadonlyRootfs":True,"NetworkMode":"none","PortBindings":{},"PublishAllPorts":False,"Privileged":False,"CapDrop":["ALL"],"CapAdd":None,"SecurityOpt":["no-new-privileges"],"NanoCpus":1000000000,"Memory":268435456,"MemorySwap":268435456,"PidsLimit":64,"Tmpfs":{"/tmp":"rw,noexec,nosuid,nodev,size=16777216,mode=1777"},"LogConfig":{"Type":"none"},"RestartPolicy":{"Name":"no"},"Binds":None,"Mounts":None,"PidMode":"","IpcMode":"private","UTSMode":"","CgroupnsMode":"private","UsernsMode":""}
+    if control.get("repository"):
+        config.update(WorkingDir="/application", Cmd=state["command"])
     host.update(control.get("host_changes",{}))
     if control.get("foreign_owner"): config["Labels"]["vulnproof.attempt"]="unrelated"
     print(json.dumps([{"Image":state["image"],"Config":config,"HostConfig":host,"Mounts":[],"State":{"Running":False,"Status":"created"}}]))
@@ -119,6 +124,8 @@ elif stage == "start":
     if control.get("stderr_warning"): print("Synthetic warning",file=sys.stderr)
     if control.get("driver_sleep"): time.sleep(10)
     if control.get("flood"): print("x"*(2*1024*1024)); sys.exit(0)
+    if "repository_driver" in control:
+        print(json.dumps(control["repository_driver"])); sys.exit(0)
     if "validation_driver" in control:
         print(json.dumps(control["validation_driver"])); sys.exit(0)
     checks={key:True for key in ("non_root","no_new_privileges","zero_capabilities","read_only_root","root_write_denied","temporary_write","only_loopback","debug_disabled","legitimate_download")}

@@ -74,7 +74,9 @@ When changing the report contract, regenerate `schemas/report-v1.schema.json` us
 
 The `prepare-repository-image` command builds source-bound images using a controlled
 recipe and declared wheel hashes; see [repository image preparation](docs/repository-images.md).
-Default tests do not require Docker. Application startup remains a separate stage.
+Default tests do not require Docker. The separately authorized `check-repository`
+command starts supported applications and checks legitimate requests; see
+[repository controls](docs/repository-controls.md) for opt-in Docker integration tests.
 
 ## Required checks
 
@@ -111,7 +113,9 @@ Update pins with their corresponding documentation and version comments.
 - Use unit tests for logic, integration tests for tool boundaries, and isolated
   execution tests for runtime restrictions as those features become available.
 - Preserve uncertainty: unsuccessful tests never prove safety.
-- Never execute arbitrary repositories or introduce unreviewed fixture execution.
+- Execute repository applications only through the reviewed preparation/control
+  workflow with explicit authorization, supported plans, and enforced isolation.
+  Never introduce unreviewed fixture execution or arbitrary startup commands.
 - Document public behavior and material limitations in the same PR as the change.
 
 ## Branches, commits, and review
