@@ -7,6 +7,7 @@ import http.client
 import importlib
 import json
 import os
+import secrets
 import select
 import socket
 import struct
@@ -15,6 +16,7 @@ import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
+from urllib.parse import urlencode
 
 CHECKS = (
     "non_root",
@@ -99,6 +101,71 @@ def serve(entry_point: str, ready_fd: int) -> None:
     server.serve_forever()
 
 
+def probe_files(port: int, request: dict[str, Any]) -> dict[str, Any]:
+    evidence: dict[str, Any] = {
+        "outcome": "failed",
+        "reason": "boundary_unavailable",
+        "canary_path": None,
+        "canary_body": None,
+        "download_root": None,
+        "probes": [],
+    }
+    try:
+        root = Path(request["download_root"]).resolve(strict=True)
+        evidence["download_root"] = str(root)
+        directory = Path("/tmp/vulnproof")
+        if not root.is_dir() or directory.exists() or directory.is_symlink():
+            return evidence
+        directory.mkdir(mode=0o700)
+        if directory.resolve().is_relative_to(root):
+            evidence["reason"] = "canary_inside_download_root"
+            return evidence
+        marker = "VulnProof:" + secrets.token_hex(32) + "\n"
+        canary = directory / (secrets.token_hex(16) + ".txt")
+        with canary.open("x") as stream:
+            stream.write(marker)
+        evidence.update(
+            canary_path=str(canary),
+            canary_body=marker,
+            initially_absent=True,
+            reason="probe_failed",
+        )
+        for kind, value in (
+            ("parent_traversal", os.path.relpath(canary, root)),
+            ("absolute_path", str(canary)),
+        ):
+            target = request["route"] + "?" + urlencode({request["query_key"]: value})
+            observed: dict[str, Any] = {
+                "kind": kind,
+                "request_target": target,
+                "status": None,
+                "body_sha256": None,
+                "body_bytes": None,
+                "truncated": False,
+            }
+            evidence["probes"].append(observed)
+            connection = http.client.HTTPConnection("127.0.0.1", port, timeout=REQUEST_TIMEOUT)
+            try:
+                connection.request("GET", target)
+                response = connection.getresponse()
+                body = response.read(RESPONSE_LIMIT + 1)
+                observed.update(
+                    status=response.status,
+                    body_bytes=len(body),
+                    truncated=len(body) > RESPONSE_LIMIT,
+                )
+                if len(body) > RESPONSE_LIMIT:
+                    evidence["reason"] = "response_limit"
+                    return evidence
+                observed["body_sha256"] = hashlib.sha256(body).hexdigest()
+            finally:
+                connection.close()
+        evidence.update(outcome="completed", reason="probes_completed")
+    except OSError, ValueError, http.client.HTTPException:
+        pass
+    return evidence
+
+
 def observe(request: dict[str, Any]) -> dict[str, Any]:
     result: dict[str, Any] = {
         "schema_version": "1.0",
@@ -112,6 +179,8 @@ def observe(request: dict[str, Any]) -> dict[str, Any]:
         "body_bytes": None,
         "truncated": False,
     }
+    if request.get("validation"):
+        result["validation"] = None
     try:
         result["checks"] = restrictions()
         if not all(result["checks"].values()):
@@ -161,6 +230,8 @@ def observe(request: dict[str, Any]) -> dict[str, Any]:
                 result["reason"] = "body_mismatch"
             else:
                 result.update(control="passed", reason="control_matched")
+                if request.get("validation"):
+                    result["validation"] = probe_files(port, request)
         finally:
             connection.close()
     except OSError, ValueError, http.client.HTTPException:

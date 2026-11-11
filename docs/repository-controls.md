@@ -2,7 +2,7 @@
 
 `vulnproof check-repository` implements E2: start one prepared application and check
 the legitimate request from one D2 draft. It reports application/control observations,
-not vulnerability classifications. E3 will add supported validation and report integration.
+not vulnerability classifications. E3a provides separately authorized [repository validation](repository-validation.md).
 A passing control establishes the expected normal response under these runtime
 conditions; it does not establish exploitability or safety.
 
@@ -125,7 +125,7 @@ Exit codes: **0** means a passed control plus verified cleanup; **1** means the
 retained attempt did not meet those conditions; **2** means pre-attempt admission,
 usage, or input/output rejection; **130** means interruption with cleanup attempted.
 Current HTML reporting consumes validation evidence, not these standalone control
-attempts. E3 will connect repository validation results to reporting.
+attempts. E3b will connect repository validation results to reporting.
 
 ## Verification
 
@@ -162,3 +162,7 @@ startup/import/dependency failures, and cleanup after deadline/overflow/interrup
 All application imports occur inside containers. The static evidence in this suite
 is synthetic; this is a control/lifecycle acceptance gate, not the E3 vulnerable and
 patched cross-repository validation checkpoint.
+
+[Repository validation](repository-validation.md) now provides E3a bounded CWE-22 attempts and JSON
+classifications. Repository HTML integration and the cross-repository demonstration
+are the next E3b/E3c steps.

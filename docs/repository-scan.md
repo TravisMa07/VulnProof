@@ -108,4 +108,8 @@ A successful planning command exits 0 even if every occurrence is blocked. Modif
 After planning, [repository image preparation](repository-images.md) packages the
 retained snapshot with explicit hashed dependencies. It does not start the application
 or authorize execution. [Repository controls](repository-controls.md) provide E2
-startup and legitimate-request checks; supported vulnerability validation remains E3.
+startup and legitimate-request checks. E3a adds [repository validation](repository-validation.md).
+
+[Repository validation](repository-validation.md) now provides E3a bounded CWE-22 attempts and JSON
+classifications. Repository HTML integration and the cross-repository demonstration
+are the next E3b/E3c steps.

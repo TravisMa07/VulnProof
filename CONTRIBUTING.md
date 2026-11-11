@@ -78,6 +78,10 @@ Default tests do not require Docker. The separately authorized `check-repository
 command starts supported applications and checks legitimate requests; see
 [repository controls](docs/repository-controls.md) for opt-in Docker integration tests.
 
+The `validate-repository` command performs authorized bounded CWE-22 attempts.
+See [repository validation](docs/repository-validation.md) for its JSON contract and
+real scanner/container integration checks.
+
 ## Required checks
 
 Run the same checks locally as CI:

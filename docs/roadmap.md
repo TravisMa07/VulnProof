@@ -7,7 +7,7 @@ Split an item if it becomes too large to review; do not combine unrelated items.
 
 ## Active expansion
 
-Milestones A and B provide repository intake and scanning. C1 investigates repository scan snapshots with CodeQL. C2 links compatible paths to individual repository findings. D1 discovers direct Flask request bindings on correlated paths. D2 combines those observations with operator configuration to draft per-finding validation plans. E1 prepares source-bound application images from operator-declared wheels. E2 starts supported applications under restrictions and checks legitimate controls; E3 will run supported validation and integrate reports. The default investigation will cover the entire checkout, with an optional component filter. Each finding will retain its identity, evidence, and the reason it stopped or advanced. Each row is a reviewable milestone that can be split into focused PRs.
+Milestones A and B provide repository intake and scanning. C1 investigates repository scan snapshots with CodeQL. C2 links compatible paths to individual repository findings. D1 discovers direct Flask request bindings on correlated paths. D2 combines those observations with operator configuration to draft per-finding validation plans. E1 prepares source-bound application images from operator-declared wheels. E2 starts supported applications under restrictions and checks legitimate controls; E3a runs bounded repository CWE-22 validation and publishes JSON results. E3b will integrate reports, and E3c will demonstrate the cross-repository checkpoint. The default investigation will cover the entire checkout, with an optional component filter. Each finding will retain its identity, evidence, and the reason it stopped or advanced. Each row is a reviewable milestone that can be split into focused PRs.
 
 | Milestone | What it will add | Acceptance gate |
 | --- | --- | --- |
@@ -28,9 +28,10 @@ Milestones A and B provide repository intake and scanning. C1 investigates repos
   authorization, start the application under restrictions, and verify the planned
   legitimate request. Preserve startup and control failure reasons. See
   [repository controls](repository-controls.md).
-- **E3: validation and reports.** Reuse the supported CWE-22 test semantics, correlate
-  observations with evidence, and expose outcomes in reports. Demonstrate the
-  cross-repository checkpoint before F.
+- **E3a: repository validation.** Reuse bounded CWE-22 semantics and produce JSON
+  observations/classifications with retained provenance. See [repository validation](repository-validation.md).
+- **E3b: repository reports.** Render the complete investigation and runtime evidence in HTML.
+- **E3c: cross-repository demonstration.** Demonstrate the checkpoint below before F.
 
 ### Cross-repository checkpoint
 

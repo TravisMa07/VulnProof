@@ -192,4 +192,8 @@ Application images can be prepared from retained repository snapshots using the
 [repository image preparation guide](docs/repository-images.md). Preparation records
 source and dependency identity. [Repository controls](docs/repository-controls.md)
 start a supported application and verify its planned legitimate response under
-explicit authorization; repository vulnerability validation remains separate work.
+explicit authorization. E3a adds separately authorized repository validation and JSON results.
+
+[Repository validation](docs/repository-validation.md) now provides E3a bounded CWE-22 attempts and JSON
+classifications. Repository HTML integration and the cross-repository demonstration
+are the next E3b/E3c steps.
