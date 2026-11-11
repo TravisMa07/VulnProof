@@ -187,3 +187,7 @@ VulnProof/
 
 Empty directories contain `.gitkeep` placeholders. See [CONTRIBUTING.md](CONTRIBUTING.md)
 for development installation, checks, code standards, and the commit/PR workflow.
+
+Application images can be prepared from retained repository snapshots using the
+[repository image preparation guide](docs/repository-images.md). Preparation records
+source and dependency identity; application startup and validation remain separate work.

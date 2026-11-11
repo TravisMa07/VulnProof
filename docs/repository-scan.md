@@ -102,3 +102,9 @@ Each captured file and handler pair can have one profile. Optional fields are `e
 The output retains every occurrence, all candidate path IDs, source locations and the origin of each selected field. Follow the draft's support references into the path bindings. The control must return HTTP 200 and exactly the expected body digest. The shared template describes fresh canary preparation, bounded requests and how to interpret observations. A failed control stops probing. An unsuccessful probe leaves safety undetermined.
 
 A successful planning command exits 0 even if every occurrence is blocked. Modified evidence, invalid configuration or an existing output file cause an error. Planning only reads local artifacts. Drafts retain scanner provenance and require a source-bound image, execution authorization and a trusted runtime driver in the execution stage.
+
+## Preparing the application image
+
+After planning, [repository image preparation](repository-images.md) packages the
+retained snapshot with explicit hashed dependencies. It does not start the application
+or authorize execution; application controls and validation remain E2/E3.
