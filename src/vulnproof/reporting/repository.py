@@ -40,7 +40,7 @@ class PlanRow(BaseModel):
 
 
 class RetainedPlan(BaseModel):
-    schema_version: Literal["1.0", "1.1"]
+    schema_version: Literal["1.0", "1.1", "1.2"]
     source_fingerprint: Sha256
     scanner_source_state: Literal["controlled_snapshot", "unverified"]
     paths: dict[str, Any]
@@ -104,7 +104,7 @@ def prepare_repository_report(
         retained = document(raw)
         rows = retained["findings"]
         if (
-            retained["schema_version"] not in ("1.0", "1.1")
+            retained["schema_version"] not in ("1.0", "1.1", "1.2")
             or not isinstance(rows, list)
             or not isinstance(retained["paths"], dict)
         ):

@@ -15,3 +15,31 @@ rules:
     message: A request query property is evaluated as JavaScript.
     severity: WARNING
     pattern: eval($REQ.query.$FIELD)
+
+  - id: vulnproof.repository.route-file-read
+    languages: [python]
+    mode: taint
+    message: A route parameter reaches the path argument of open.
+    severity: WARNING
+    pattern-sources:
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  @$APP.get($ROUTE)
+                  def $FUNC(...):
+                    ...
+              - pattern-inside: |
+                  @$APP.route($ROUTE, ...)
+                  def $FUNC(...):
+                    ...
+          - metavariable-regex:
+              metavariable: $ROUTE
+              regex: .*<path:.*
+          - pattern: |
+              def $FUNC(..., $PARAM, ...):
+                ...
+          - focus-metavariable: $PARAM
+    pattern-sinks:
+      - patterns:
+          - pattern: open($PATH, ...)
+          - focus-metavariable: $PATH

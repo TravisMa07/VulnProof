@@ -40,6 +40,20 @@ def control_inputs(
         "service = Flask(__name__)\n@service.get('/export')\ndef export():\n"
         "    name = request.args.get('document')\n    return " + expression + "\n"
     )
+    if mode in ("route", "route_patched"):
+        source = (
+            source.replace(
+                "@service.get('/export')",
+                "@service.route('/export/<path:document>', methods=['GET'])",
+            )
+            .replace("def export():", "def export(document):")
+            .replace("name = request.args.get('document')", "name = document")
+        )
+        if mode == "route_patched":
+            source = source.replace(
+                "return " + expression,
+                "return " + expression + " if name == 'manual.txt' else ('missing', 404)",
+            )
     additions = {
         "import_failed": "raise RuntimeError('synthetic import failure')\n",
         "startup_timeout": "import time\ntime.sleep(30)\n",
@@ -52,7 +66,14 @@ def control_inputs(
         "noise": "print('application stdout is separate')\n",
         "flood": "print('x' * (2 * 1024 * 1024), flush=True)\n",
     }
-    target.write_text(source + additions.get(mode, ""))
+    target.write_text(
+        source
+        + (
+            additions["fixed_query"]
+            if mode in ("route", "route_patched")
+            else additions.get(mode, "")
+        )
+    )
     body = b"manual\n" if mode != "large" else b"x" * 65537
     (checkout / "manual.txt").write_bytes(body)
     scanner = {
@@ -62,7 +83,9 @@ def control_inputs(
                 "tool": {"driver": {"name": "Semgrep OSS"}},
                 "results": [
                     {
-                        "ruleId": RULE,
+                        "ruleId": "vulnproof.repository.route-file-read"
+                        if mode in ("route", "route_patched")
+                        else RULE,
                         "message": {"text": "Synthetic control test finding"},
                         "locations": [location(7, uri=module, start_column=17, end_column=21)],
                     }
@@ -77,7 +100,7 @@ def control_inputs(
     (analysis / "diagnostics").mkdir(parents=True)
     (analysis / "work").mkdir()
     shutil.copytree(scan / "snapshot", analysis / "work/source")
-    raw = {
+    raw: dict[str, Any] = {
         "version": "2.1.0",
         "runs": [
             {
@@ -112,6 +135,10 @@ def control_inputs(
             }
         ],
     }
+    if mode in ("route", "route_patched"):
+        raw["runs"][0]["results"][0]["codeFlows"][0]["threadFlows"][0]["locations"][0][
+            "location"
+        ] = location(5, uri=module, start_column=12, end_column=20)
     raw_path = analysis / "diagnostics/raw.sarif"
     raw_path.write_text(json.dumps(raw))
     results, notes = normalize_sarif(
@@ -169,6 +196,15 @@ def control_inputs(
             }
         )
     )
+    if mode in ("route", "route_patched"):
+        settings = json.loads(config.read_bytes())
+        settings["schema_version"] = "1.2"
+        settings["endpoints"][0]["path_parameter"] = "document"
+        settings["endpoints"][0]["fixed_query"] = [
+            {"name": "model", "value": "demo & ü"},
+            {"name": "version", "value": ""},
+        ]
+        config.write_text(json.dumps(settings))
     if mode == "fixed_query":
         settings = json.loads(config.read_bytes())
         settings["schema_version"] = "1.1"

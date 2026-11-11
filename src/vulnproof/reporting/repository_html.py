@@ -73,7 +73,9 @@ def runtime(detail: ValidationDetail) -> str:
     else:
         if attempt.http_request is not None:
             sections.append(
-                "<p>Varied query parameter: <strong>"
+                "<p>Varied "
+                + ("path" if attempt.http_request["schema_version"] == "1.1" else "query")
+                + " parameter: <strong>"
                 + text(attempt.http_request["query_key"])
                 + "</strong>. Fixed parameters are preserved in every request.</p>"
             )
@@ -262,7 +264,7 @@ def render_repository_html(report: RepositoryReport) -> str:
                     ("CodeQL correlation", row.get("correlation_status")),
                     (
                         "Request binding",
-                        f"{row.get('method', 'unresolved')} {row.get('route', 'unresolved')} · query: {row.get('query_key', 'unresolved')}",
+                        f"{row.get('method', 'unresolved')} {row.get('route', 'unresolved')} · selected input: {row.get('query_key', 'unresolved')}",
                     ),
                     ("Planning", row.get("status")),
                     (

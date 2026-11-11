@@ -156,3 +156,37 @@ can fail the legitimate control; such failures never establish safety.
 Rebuild prepared images before using this version: the packaged driver changed.
 The existing preparation receipt binds its hash and rejects stale images. No new
 container permissions, network access, startup hooks, or request methods are enabled.
+
+## Route parameters
+
+Route profiles support one direct Flask GET binding of the form
+`/download/<path:document>`. Endpoint configuration schema `1.2` declares
+`path_parameter: "document"` instead of `query_key`. Keep `control_value`,
+`control_sha256`, `download_root`, and optional `fixed_query` as before. The source
+route and handler argument must agree with the declaration and retained CodeQL path.
+No configuration value can substitute for absent static evidence.
+
+Plans containing route requests use schema 1.2. Their `http_request` uses schema 1.1;
+within that explicitly versioned representation the legacy field `query_key` names
+the selected **path** argument. Attempt schema 1.1 can retain either request profile.
+Earlier query profiles keep schema 1.0 and their original encoding semantics.
+
+The builder substitutes the selected value once, percent-encodes path data while
+preserving slashes, and appends unchanged fixed query values. It does not normalize
+`..`, follow redirects, or retry alternative encodings. Exact requests and HTTP
+responses are retained. An absolute-path candidate may be rejected or redirected by
+Flask routing before the handler runs; this is an observation, not a safety verdict.
+Authority-shaped targets beginning `//` are rejected. Unsupported converters,
+multiple route parameters, Blueprint registration, and file-serving APIs remain gaps.
+
+Actual Semgrep/CodeQL checks found a modeled argument-to-open path using
+`@app.route(..., methods=["GET"])`. With the pinned CodeQL bundle, the equivalent
+`@app.get(...)` example yielded no path. The pipeline preserves that absence. The
+patched inline allowlist also yielded no CodeQL path; independent runtime checks
+use explicitly authored static evidence and do not claim a controlled confirmation.
+
+The scanner adds `vulnproof.repository.route-file-read`. Correlation accepts the
+reviewed current ruleset and the previous query-only ruleset SHA-256
+`ab7be84091543e7f00b97d73eff516bded34e9e9d11b68841773c7adcf890fb3` for historical
+controlled scans; unknown rule hashes remain rejected. Existing query discovery is
+unchanged. Rebuild prepared images because this change updates the packaged driver.
