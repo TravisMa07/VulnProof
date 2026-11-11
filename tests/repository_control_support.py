@@ -47,6 +47,7 @@ def control_inputs(
         "debug": "service.debug = True\n",
         "missing_symbol": "del service\n",
         "request_timeout": "@service.before_request\ndef delay():\n    import time\n    time.sleep(10)\n",
+        "patched": "@service.before_request\ndef restrict():\n    if request.args.get('document') != 'manual.txt':\n        from flask import abort\n        abort(404)\n",
         "noise": "print('application stdout is separate')\n",
         "flood": "print('x' * (2 * 1024 * 1024), flush=True)\n",
     }

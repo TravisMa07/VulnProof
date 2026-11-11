@@ -2,7 +2,7 @@
 
 import json
 from pathlib import Path
-from typing import Literal, Self
+from typing import Any, Literal, Self
 from uuid import uuid4
 
 from pydantic import Field, model_validator
@@ -48,6 +48,7 @@ class ControlObservation(Contract):
     body_sha256: Sha256 | None = None
     body_bytes: int | None = Field(default=None, ge=0, le=RESPONSE_LIMIT + 1)
     truncated: bool = False
+    validation: dict[str, Any] | None = None
 
     @model_validator(mode="after")
     def consistent(self) -> Self:
@@ -72,7 +73,9 @@ class ControlObservation(Contract):
 
 class RepositoryControlAttempt(Contract):
     schema_version: Literal["1.0"] = "1.0"
-    profile: Literal["repository-control-v1"] = "repository-control-v1"
+    profile: Literal["repository-control-v1", "repository-validation-attempt-v1"] = (
+        "repository-control-v1"
+    )
     container_name: str
     image_id: ImageId
     source_fingerprint: Sha256
@@ -85,7 +88,9 @@ class RepositoryControlAttempt(Contract):
     supporting_path_ids: tuple[str, ...]
     scanner_source_state: Literal["controlled_snapshot", "unverified"]
     execution_authorized: Literal[True] = True
-    authorization_scope: Literal["repository_control_only"] = "repository_control_only"
+    authorization_scope: Literal["repository_control_only", "repository_cwe22_validation"] = (
+        "repository_control_only"
+    )
     request: dict[str, str]
     requested: ExecutionRequirements
     policy_verified: bool
@@ -144,8 +149,9 @@ def check_repository(
     socket: Path,
     output: Path,
     authorize_execution: bool,
+    authorize_validation: bool = False,
 ) -> RepositoryControlAttempt:
-    if not authorize_execution:
+    if not authorize_execution and not authorize_validation:
         raise RunnerFailure(
             "authorization_required",
             "Explicit authorization is required for this repository control",
@@ -199,7 +205,21 @@ def check_repository(
             "request_target": entry["control"]["request_target"],
             "body_sha256": entry["control"]["body_sha256"],
         }
-        payload = json.dumps(request, separators=(",", ":"))
+        if authorize_validation:
+            request.update(
+                download_root=entry["download_root"],
+                route=entry["route"],
+                query_key=entry["query_key"],
+            )
+        driver_request: dict[str, Any] = dict(request)
+        if authorize_validation:
+            driver_request.update(
+                validation=True,
+                download_root=entry["download_root"],
+                route=entry["route"],
+                query_key=entry["query_key"],
+            )
+        payload = json.dumps(driver_request, separators=(",", ":"))
         if len(payload) > 32768:
             raise RunnerFailure("request_limit", "Control exceeds driver input bound")
         candidate = next(iter(entry["candidates"]))
@@ -279,6 +299,10 @@ def check_repository(
             raise RunnerFailure(
                 "invalid_control_observation", "Driver response disagrees with expected control"
             )
+        if observation.validation is not None and not authorize_validation:
+            raise RunnerFailure(
+                "unexpected_validation", "Control attempt returned validation evidence"
+            )
         driver = observation
         execution = "completed" if driver.control != "not_run" else "failed"
         if driver.control != "passed":
@@ -316,6 +340,12 @@ def check_repository(
                     )
                 )
         report = RepositoryControlAttempt(
+            profile="repository-validation-attempt-v1"
+            if authorize_validation
+            else "repository-control-v1",
+            authorization_scope="repository_cwe22_validation"
+            if authorize_validation
+            else "repository_control_only",
             container_name=name,
             image_id=image.image_id,
             source_fingerprint=image.source_fingerprint,

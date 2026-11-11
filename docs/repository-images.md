@@ -4,7 +4,8 @@
 an existing repository scan/import snapshot. It does not start the application,
 run a control request, execute a vulnerability test, or authorize execution.
 [Repository controls](repository-controls.md) provide separately authorized startup
-and legitimate-request checking; E3 will add validation and reports.
+and legitimate-request checking. [Repository validation](repository-validation.md)
+adds separately authorized bounded CWE-22 attempts and JSON results.
 The existing fixture runner remains unchanged and does not admit these images.
 
 ## Inputs and preparation

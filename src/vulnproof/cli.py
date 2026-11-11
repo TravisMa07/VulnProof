@@ -30,6 +30,7 @@ from .scanning.repository import scan_repository
 from .static import AnalysisFailure, analyze_capture
 from .static.repository import investigate
 from .validation import validate
+from .validation.repository import validate_repository
 
 
 def _read_input(path: Path) -> bytes:
@@ -101,25 +102,29 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     for flag in ("scan", "investigation", "correlation", "output"):
         discovery.add_argument("--" + flag, type=Path, required=True)
-    repository_control = commands.add_parser(
-        "check-repository", help="Run one authorized repository application control"
-    )
-    for flag in (
-        "scan",
-        "investigation",
-        "correlation",
-        "discovery",
-        "plan",
-        "prepared-image",
-        "docker-socket",
-        "output",
+    for command_name, authorization in (
+        ("check-repository", "authorize-execution"),
+        ("validate-repository", "authorize-validation"),
     ):
-        repository_control.add_argument("--" + flag, type=Path, required=True)
-    repository_control.add_argument(
-        "--config", type=Path, help="Original endpoint configuration used for planning"
-    )
-    repository_control.add_argument("--finding-id", required=True)
-    repository_control.add_argument("--authorize-execution", action="store_true")
+        repository_control = commands.add_parser(
+            command_name, help="Run an authorized repository control or validation"
+        )
+        for flag in (
+            "scan",
+            "investigation",
+            "correlation",
+            "discovery",
+            "plan",
+            "prepared-image",
+            "docker-socket",
+            "output",
+        ):
+            repository_control.add_argument("--" + flag, type=Path, required=True)
+        repository_control.add_argument(
+            "--config", type=Path, help="Original endpoint configuration"
+        )
+        repository_control.add_argument("--finding-id", required=True)
+        repository_control.add_argument("--" + authorization, action="store_true")
     image_preparation = commands.add_parser(
         "prepare-repository-image",
         help="Prepare a source-bound image without starting the application",
@@ -228,6 +233,37 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     try:
+        if args.command == "validate-repository":
+
+            def validation_terminate(signum: int, frame: object) -> None:
+                raise KeyboardInterrupt
+
+            previous = signal.signal(signal.SIGTERM, validation_terminate)
+            try:
+                validation_result = validate_repository(
+                    scan=args.scan,
+                    investigation=args.investigation,
+                    correlation=args.correlation,
+                    discovery=args.discovery,
+                    plan=args.plan,
+                    config=args.config,
+                    preparation=args.prepared_image,
+                    finding_id=args.finding_id,
+                    socket=args.docker_socket,
+                    output=args.output,
+                    authorize_validation=args.authorize_validation,
+                )
+            finally:
+                signal.signal(signal.SIGTERM, previous)
+            print(
+                json.dumps(
+                    {
+                        "classification": validation_result.classification,
+                        "reason": validation_result.reason,
+                    }
+                )
+            )
+            return 1 if validation_result.classification == "failed" else 0
         if args.command == "check-repository":
 
             def control_terminate(signum: int, frame: object) -> None:
@@ -577,6 +613,9 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"{exc.code}: {exc}", file=sys.stderr)
         return 2
     except KeyboardInterrupt:
+        if args.command == "validate-repository":
+            print("validation_interrupted: Cleanup attempted; see retained result", file=sys.stderr)
+            return 130
         if args.command == "check-repository":
             print(
                 "control_interrupted: Cleanup attempted; retain attempt and reservation",
