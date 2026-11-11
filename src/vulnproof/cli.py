@@ -23,6 +23,7 @@ from .planning.repository import plan_repository
 from .provenance import CaptureFailure, capture_source, verify_capture
 from .reporting import ReportFailure, write_report
 from .runner import RunnerFailure, run_diagnostics
+from .runner.controls import check_repository
 from .runner.repository import prepare_repository_image
 from .scanning import ScanFailure, scan_fixture, verify_scan
 from .scanning.repository import scan_repository
@@ -100,6 +101,25 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     for flag in ("scan", "investigation", "correlation", "output"):
         discovery.add_argument("--" + flag, type=Path, required=True)
+    repository_control = commands.add_parser(
+        "check-repository", help="Run one authorized repository application control"
+    )
+    for flag in (
+        "scan",
+        "investigation",
+        "correlation",
+        "discovery",
+        "plan",
+        "prepared-image",
+        "docker-socket",
+        "output",
+    ):
+        repository_control.add_argument("--" + flag, type=Path, required=True)
+    repository_control.add_argument(
+        "--config", type=Path, help="Original endpoint configuration used for planning"
+    )
+    repository_control.add_argument("--finding-id", required=True)
+    repository_control.add_argument("--authorize-execution", action="store_true")
     image_preparation = commands.add_parser(
         "prepare-repository-image",
         help="Prepare a source-bound image without starting the application",
@@ -208,6 +228,40 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     args = parser.parse_args(argv)
     try:
+        if args.command == "check-repository":
+
+            def control_terminate(signum: int, frame: object) -> None:
+                raise KeyboardInterrupt
+
+            previous = signal.signal(signal.SIGTERM, control_terminate)
+            try:
+                control_attempt = check_repository(
+                    scan=args.scan,
+                    investigation=args.investigation,
+                    correlation=args.correlation,
+                    discovery=args.discovery,
+                    plan=args.plan,
+                    config=args.config,
+                    preparation=args.prepared_image,
+                    finding_id=args.finding_id,
+                    socket=args.docker_socket,
+                    output=args.output,
+                    authorize_execution=args.authorize_execution,
+                )
+            finally:
+                signal.signal(signal.SIGTERM, previous)
+            print(
+                json.dumps(
+                    {
+                        "execution": control_attempt.execution,
+                        "cleanup": control_attempt.cleanup,
+                        "control": control_attempt.driver.control
+                        if control_attempt.driver
+                        else "not_run",
+                    }
+                )
+            )
+            return 0 if control_attempt.succeeded else 1
         if args.command == "prepare-repository-image":
 
             def preparation_terminate(signum: int, frame: object) -> None:
@@ -523,6 +577,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"{exc.code}: {exc}", file=sys.stderr)
         return 2
     except KeyboardInterrupt:
+        if args.command == "check-repository":
+            print(
+                "control_interrupted: Cleanup attempted; retain attempt and reservation",
+                file=sys.stderr,
+            )
+            return 130
         if args.command == "prepare-repository-image":
             print("preparation_interrupted: See retained preparation diagnostics", file=sys.stderr)
             return 130

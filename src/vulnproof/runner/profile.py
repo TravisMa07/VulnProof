@@ -61,7 +61,9 @@ def recipe_hash(recipe: Recipe) -> str:
     ).hexdigest()
 
 
-def create_args(name: str, image: str) -> list[str]:
+def create_args(
+    name: str, image: str, *, command: list[str] | None = None, workdir: str = "/fixture"
+) -> list[str]:
     return [
         "create",
         "--name",
@@ -84,9 +86,9 @@ def create_args(name: str, image: str) -> list[str]:
         "--no-healthcheck",
         "--restart=no",
         "--entrypoint=python",
-        "--workdir=/fixture",
+        "--workdir=" + workdir,
         image,
-        "/fixture/runner_driver.py",
+        *(command if command is not None else ["/fixture/runner_driver.py"]),
     ]
 
 
@@ -106,15 +108,22 @@ def verify_image(value: dict[str, Any], image: str) -> None:
         raise RunnerFailure("image_policy_mismatch", "Prepared image configuration is incompatible")
 
 
-def verify_container(value: dict[str, Any], image: str, name: str) -> None:
+def verify_container(
+    value: dict[str, Any],
+    image: str,
+    name: str,
+    *,
+    command: list[str] | None = None,
+    workdir: str = "/fixture",
+) -> None:
     host, config = value["HostConfig"], value["Config"]
     checks = [
         value["Image"] == image,
         config["User"] == "10001:10001",
         config.get("Labels", {}).get("vulnproof.attempt") == name,
         config["Entrypoint"] == ["python"],
-        config["Cmd"] == ["/fixture/runner_driver.py"],
-        config["WorkingDir"] == "/fixture",
+        config["Cmd"] == (command if command is not None else ["/fixture/runner_driver.py"]),
+        config["WorkingDir"] == workdir,
         not config.get("Volumes"),
         config.get("Healthcheck", {}).get("Test") == ["NONE"],
         host["ReadonlyRootfs"] is True,
