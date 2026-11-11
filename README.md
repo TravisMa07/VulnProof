@@ -195,5 +195,5 @@ start a supported application and verify its planned legitimate response under
 explicit authorization. E3a adds separately authorized repository validation and JSON results.
 
 [Repository validation](docs/repository-validation.md) now provides E3a bounded CWE-22 attempts and JSON
-classifications. Repository HTML integration and the cross-repository demonstration
-are the next E3b/E3c steps.
+classifications. [Repository reports](docs/repository-reports.md) provide offline HTML flows and a
+complete finding inventory. E3c, the cross-repository demonstration, is the next step.

@@ -182,7 +182,9 @@ class Checkout:
         )
 
 
-def inventory(data: bytes, repo: Path, component: str | None = None) -> Inventory:
+def inventory(
+    data: bytes, repo: Path, component: str | None = None, *, inspect_git: bool = True
+) -> Inventory:
     raw, document = decode_sarif(data)
     with open_root(repo.absolute()):
         pass
@@ -277,7 +279,7 @@ def inventory(data: bytes, repo: Path, component: str | None = None) -> Inventor
     return Inventory(
         digest,
         raw,
-        checkout_head(repo.absolute()),
+        checkout_head(repo.absolute()) if inspect_git else None,
         runs,
         total,
         "partial" if partial else "complete",

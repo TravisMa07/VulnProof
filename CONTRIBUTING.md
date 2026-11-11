@@ -80,7 +80,9 @@ command starts supported applications and checks legitimate requests; see
 
 The `validate-repository` command performs authorized bounded CWE-22 attempts.
 See [repository validation](docs/repository-validation.md) for its JSON contract and
-real scanner/container integration checks.
+real scanner/container integration checks. The passive `report-repository` command
+produces the inventory and HTML flows; see [repository reports](docs/repository-reports.md).
+Its tests require no external tools or application imports.
 
 ## Required checks
 

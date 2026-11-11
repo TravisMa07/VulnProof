@@ -107,7 +107,7 @@ The trusted-PR/main CI job prepares pinned tools and wheels before running these
 checks on Linux AMD64, with read-only repository permissions. Generated source,
 build contexts, and application logs are kept out of public diagnostic uploads.
 
-E3b will render repository JSON results and their complete investigation flow in
-HTML. E3c will demonstrate vulnerable/patched revisions and a second unfamiliar
+E3b [repository reports](repository-reports.md) render repository results and their
+complete investigation flow in offline HTML. E3c will demonstrate vulnerable/patched revisions and a second unfamiliar
 compatible repository with the same installed build. The generated applications
 used here establish the E3a acceptance gate.

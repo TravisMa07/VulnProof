@@ -1,6 +1,7 @@
 """Prepare both outputs before exclusively creating a new report directory."""
 
 import os
+from collections.abc import Callable
 from pathlib import Path
 
 from vulnproof.provenance.filesystem import open_root
@@ -13,6 +14,19 @@ MAX_OUTPUT_BYTES = 64 * 1024 * 1024
 
 
 def write_report(validation: Path, output: Path) -> ReportDocument:
+    report = prepare_report(validation)
+    publish_report(
+        validation,
+        output,
+        lambda: {
+            "report.json": (report.model_dump_json(indent=2) + "\n").encode("utf-8"),
+            "report.html": render_html(report).encode("utf-8"),
+        },
+    )
+    return report
+
+
+def publish_report(validation: Path, output: Path, prepare: Callable[[], dict[str, bytes]]) -> None:
     try:
         validation, output = validation.absolute(), output.absolute()
         if output.resolve().is_relative_to(validation.resolve()):
@@ -24,11 +38,7 @@ def write_report(validation: Path, output: Path) -> ReportDocument:
                 raise ReportFailure(
                     "report_output_exists", "Refusing to overwrite an existing report destination"
                 )
-            report = prepare_report(validation)
-            contents = {
-                "report.json": (report.model_dump_json(indent=2) + "\n").encode("utf-8"),
-                "report.html": render_html(report).encode("utf-8"),
-            }
+            contents = prepare()
             if any(len(data) > MAX_OUTPUT_BYTES for data in contents.values()):
                 raise ReportFailure(
                     "report_output_limit", "Rendered output exceeds 64 MiB per file"
@@ -59,7 +69,6 @@ def write_report(validation: Path, output: Path) -> ReportDocument:
                 raise
             finally:
                 os.close(descriptor)
-        return report
     except ReportFailure:
         raise
     except (ValueError, OSError) as exc:
