@@ -7,6 +7,7 @@ import http.client
 import importlib
 import json
 import os
+import re
 import secrets
 import select
 import socket
@@ -16,7 +17,7 @@ import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 CHECKS = (
     "non_root",
@@ -101,6 +102,65 @@ def serve(entry_point: str, ready_fd: int) -> None:
     server.serve_forever()
 
 
+def request_target(profile: dict[str, Any], value: str) -> str:
+    """Construct a bounded local GET target; shared by host and packaged observer."""
+    if set(profile) != {
+        "schema_version",
+        "route",
+        "query_key",
+        "fixed_query",
+        "control_value",
+    } or profile["schema_version"] not in ("1.0", "1.1"):
+        raise ValueError("Invalid GET request profile")
+    route, key, fixed = profile["route"], profile["query_key"], profile["fixed_query"]
+    path_input = profile["schema_version"] == "1.1"
+    if path_input:
+        if not isinstance(route, str) or not isinstance(key, str) or not key.isidentifier():
+            raise ValueError("Invalid path binding")
+        placeholder = "<path:" + key + ">"
+        if route.count(placeholder) != 1 or re.search(r"[<>]", route.replace(placeholder, "")):
+            raise ValueError("Expected exactly one path converter")
+        route = route.replace(placeholder, "placeholder")
+    if (
+        not isinstance(route, str)
+        or not route.startswith("/")
+        or route.startswith("//")
+        or any(c in route for c in "?#\\<>")
+        or not route.isascii()
+        or any(ord(c) <= 32 or ord(c) == 127 for c in route)
+    ):
+        raise ValueError("Expected a literal local route without query or fragment")
+    if not isinstance(key, str) or not key or len(key) > 256:
+        raise ValueError("Expected one selected query key")
+    if not isinstance(value, str) or not isinstance(profile["control_value"], str):
+        raise ValueError("Expected string query values")
+    if not isinstance(fixed, list) or len(fixed) > 64:
+        raise ValueError("Expected at most 64 fixed query parameters")
+    pairs = []
+    names = set() if path_input else {key}
+    for item in fixed:
+        if not isinstance(item, dict) or set(item) != {"name", "value"}:
+            raise ValueError("Expected fixed name/value pairs")
+        name, constant = item["name"], item["value"]
+        if not isinstance(name, str) or not name or len(name) > 256 or name in names:
+            raise ValueError("Duplicate or conflicting query parameter")
+        if not isinstance(constant, str) or len(constant) > 4096:
+            raise ValueError("Invalid fixed query value")
+        names.add(name)
+        pairs.append((name, constant))
+    if path_input:
+        target = str(profile["route"]).replace("<path:" + key + ">", quote(value, safe="/"))
+        if pairs:
+            target += "?" + urlencode(pairs)
+    else:
+        target = route + "?" + urlencode([*pairs, (key, value)])
+    if target.startswith("//"):
+        raise ValueError("Request target must not resemble an authority")
+    if len(target) > 16384:
+        raise ValueError("Request target exceeds limit")
+    return target
+
+
 def probe_files(port: int, request: dict[str, Any]) -> dict[str, Any]:
     evidence: dict[str, Any] = {
         "outcome": "failed",
@@ -134,7 +194,11 @@ def probe_files(port: int, request: dict[str, Any]) -> dict[str, Any]:
             ("parent_traversal", os.path.relpath(canary, root)),
             ("absolute_path", str(canary)),
         ):
-            target = request["route"] + "?" + urlencode({request["query_key"]: value})
+            target = (
+                request_target(request["http_request"], value)
+                if request.get("http_request")
+                else request["route"] + "?" + urlencode({request["query_key"]: value})
+            )
             observed: dict[str, Any] = {
                 "kind": kind,
                 "request_target": target,
@@ -214,7 +278,12 @@ def observe(request: dict[str, Any]) -> dict[str, Any]:
         result["reason"] = "request_failed"
         connection = http.client.HTTPConnection("127.0.0.1", port, timeout=REQUEST_TIMEOUT)
         try:
-            connection.request("GET", request["request_target"])
+            connection.request(
+                "GET",
+                request_target(request["http_request"], request["http_request"]["control_value"])
+                if request.get("http_request")
+                else request["request_target"],
+            )
             response = connection.getresponse()
             body = response.read(RESPONSE_LIMIT + 1)
             result.update(

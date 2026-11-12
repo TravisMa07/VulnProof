@@ -111,3 +111,82 @@ E3b [repository reports](repository-reports.md) render repository results and th
 complete investigation flow in offline HTML. E3c will demonstrate vulnerable/patched revisions and a second unfamiliar
 compatible repository with the same installed build. The generated applications
 used here establish the E3a acceptance gate.
+
+## Fixed query parameters
+
+Endpoint configuration schema `1.1` accepts an ordered `fixed_query` list alongside
+`query_key`, `control_value`, and `control_sha256`. For example:
+
+```json
+{
+  "schema_version": "1.1",
+  "endpoints": [{
+    "file": "exports/web.py",
+    "handler": "export",
+    "entry_point": "exports/web.py:service",
+    "download_root": "/application",
+    "query_key": "document",
+    "control_value": "manual.txt",
+    "control_sha256": "REPLACE_WITH_SHA256_OF_LEGITIMATE_RESPONSE",
+    "fixed_query": [
+      {"name": "model", "value": "demo & ü"},
+      {"name": "version", "value": ""}
+    ]
+  }]
+}
+```
+
+The hash above is an explanatory placeholder, not runnable configuration. Route and
+method may be discovered or explicitly supplied under the existing conflict rules.
+The control target is `/export?model=demo+%26+%C3%BC&version=&document=manual.txt`.
+Both bounded probes preserve `model` and `version` and replace only `document`.
+These are ordinary query values, not a credentials or secret-injection mechanism.
+
+Plans from configuration 1.1 use plan schema 1.1. Drafts using fixed parameters retain
+an `http_request` profile (schema 1.0); runtime attempts carrying it use attempt schema
+1.1. Historical configuration, plans and attempts retain their original single-query
+semantics. The HTML report identifies the varied parameter and retains exact targets.
+
+Duplicate names, overlap with the varied parameter, and embedded route queries or
+fragments are rejected. Fixed values may be empty or Unicode. Profiles allow up to
+64 fixed parameters, 256 characters per name, 4,096 characters per fixed value, and
+16,384 characters per encoded request target. Missing application-required values
+can fail the legitimate control; such failures never establish safety.
+
+Rebuild prepared images before using this version: the packaged driver changed.
+The existing preparation receipt binds its hash and rejects stale images. No new
+container permissions, network access, startup hooks, or request methods are enabled.
+
+## Route parameters
+
+Route profiles support one direct Flask GET binding of the form
+`/download/<path:document>`. Endpoint configuration schema `1.2` declares
+`path_parameter: "document"` instead of `query_key`. Keep `control_value`,
+`control_sha256`, `download_root`, and optional `fixed_query` as before. The source
+route and handler argument must agree with the declaration and retained CodeQL path.
+No configuration value can substitute for absent static evidence.
+
+Plans containing route requests use schema 1.2. Their `http_request` uses schema 1.1;
+within that explicitly versioned representation the legacy field `query_key` names
+the selected **path** argument. Attempt schema 1.1 can retain either request profile.
+Earlier query profiles keep schema 1.0 and their original encoding semantics.
+
+The builder substitutes the selected value once, percent-encodes path data while
+preserving slashes, and appends unchanged fixed query values. It does not normalize
+`..`, follow redirects, or retry alternative encodings. Exact requests and HTTP
+responses are retained. An absolute-path candidate may be rejected or redirected by
+Flask routing before the handler runs; this is an observation, not a safety verdict.
+Authority-shaped targets beginning `//` are rejected. Unsupported converters,
+multiple route parameters, Blueprint registration, and file-serving APIs remain gaps.
+
+Actual Semgrep/CodeQL checks found a modeled argument-to-open path using
+`@app.route(..., methods=["GET"])`. With the pinned CodeQL bundle, the equivalent
+`@app.get(...)` example yielded no path. The pipeline preserves that absence. The
+patched inline allowlist also yielded no CodeQL path; independent runtime checks
+use explicitly authored static evidence and do not claim a controlled confirmation.
+
+The scanner adds `vulnproof.repository.route-file-read`. Correlation accepts the
+reviewed current ruleset and the previous query-only ruleset SHA-256
+`ab7be84091543e7f00b97d73eff516bded34e9e9d11b68841773c7adcf890fb3` for historical
+controlled scans; unknown rule hashes remain rejected. Existing query discovery is
+unchanged. Rebuild prepared images because this change updates the packaged driver.

@@ -48,7 +48,13 @@ def test_real_repository_validation(tmp_path: Path, mode: str, reason: str) -> N
     reason="requires pinned Semgrep and CodeQL",
 )
 @pytest.mark.parametrize(
-    ("mode", "expected"), [("normal", "confirmed"), ("patched", "inconclusive")]
+    ("mode", "expected"),
+    [
+        ("normal", "confirmed"),
+        ("patched", "inconclusive"),
+        ("route", "confirmed"),
+        ("route_patched", "inconclusive"),
+    ],
 )
 def test_real_scanner_to_validation(tmp_path: Path, mode: str, expected: str) -> None:
     import json
@@ -96,7 +102,12 @@ def test_real_scanner_to_validation(tmp_path: Path, mode: str, expected: str) ->
         plan_repository(scan, investigation, args["correlation"], args["discovery"], args["config"])
     )
     plan = json.loads(args["plan"].read_bytes())
-    draft = next(r for r in plan["findings"] if r["status"] == "draft")
+    drafts = [r for r in plan["findings"] if r["status"] == "draft"]
+    if mode == "route_patched" and not drafts:
+        assert all(r["status"] == "blocked" for r in plan["findings"])
+        assert json.loads((investigation / "investigation.json").read_bytes())["results"] == []
+        return  # No static path: do not fabricate one to execute this finding.
+    draft = drafts[0]
     args["finding_id"] = draft["finding_id"]
     preparation = tmp_path / "scanner-prepared"
     prepare_repository_image(
@@ -143,3 +154,70 @@ def test_missing_runtime_boundary(tmp_path: Path) -> None:
     assert result.attempt and result.attempt.driver and result.attempt.driver.validation
     assert result.attempt.driver.validation["probes"] == []
     assert result.attempt.cleanup == "verified_absent"
+
+
+def test_real_fixed_query_validation(tmp_path: Path) -> None:
+    from urllib.parse import parse_qsl, urlsplit
+
+    args = prepared_args(tmp_path, "exports/web.py", "fixed_query")
+    args.pop("authorize_execution")
+    result = validate_repository(**args, authorize_validation=True)
+    assert result.reason == "scanner_source_unverified"
+    assert result.attempt and result.attempt.schema_version == "1.1"
+    assert result.attempt.cleanup == "verified_absent" and result.attempt.policy_verified
+    assert result.attempt.driver and result.attempt.driver.validation
+    assert result.attempt.driver.control == "passed"
+    for probe in result.attempt.driver.validation["probes"]:
+        assert probe["status"] == 200
+        pairs = parse_qsl(urlsplit(probe["request_target"]).query, keep_blank_values=True)
+        assert pairs[:2] == [("model", "demo & ü"), ("version", "")]
+
+    # Missing constants fail the legitimate control before any probe.
+    import json
+
+    from vulnproof.planning.repository import plan_repository
+
+    settings = json.loads(args["config"].read_bytes())
+    settings["endpoints"][0].pop("fixed_query")
+    args["config"].write_text(json.dumps(settings))
+    args["plan"].write_text(
+        plan_repository(
+            args["scan"],
+            args["investigation"],
+            args["correlation"],
+            args["discovery"],
+            args["config"],
+        )
+    )
+    args["output"] = tmp_path / "missing-fixed-values"
+    missing = validate_repository(**args, authorize_validation=True)
+    assert missing.classification == "failed"
+    assert missing.attempt and missing.attempt.driver
+    assert missing.attempt.driver.status == 400
+    assert missing.attempt.driver.validation is None
+    assert missing.attempt.cleanup == "verified_absent"
+
+
+@pytest.mark.parametrize("mode", ["route", "route_patched"])
+def test_route_runtime_observations(tmp_path: Path, mode: str) -> None:
+    from urllib.parse import parse_qsl, urlsplit
+
+    args = prepared_args(tmp_path, "exports/web.py", mode)
+    args.pop("authorize_execution")
+    result = validate_repository(**args, authorize_validation=True)
+    assert result.attempt and result.attempt.policy_verified
+    assert result.attempt.cleanup == "verified_absent"
+    assert result.attempt.driver and result.attempt.driver.control == "passed"
+    observed = result.attempt.driver.validation
+    assert observed and observed["outcome"] == "completed"
+    assert len(observed["probes"]) == 2
+    for probe in observed["probes"]:
+        assert parse_qsl(urlsplit(probe["request_target"]).query, keep_blank_values=True) == [
+            ("model", "demo & ü"),
+            ("version", ""),
+        ]
+    if mode == "route_patched":
+        assert all(p["status"] != 200 for p in observed["probes"])
+    else:
+        assert observed["probes"][0]["status"] == 200
+    assert result.classification == "inconclusive"  # Authored static evidence remains unverified.

@@ -2,6 +2,7 @@
 
 import ast
 import io
+import re
 import tokenize
 from dataclasses import dataclass
 
@@ -28,6 +29,7 @@ class Handler:
     route_literal: str | None
     methods: list[str]
     decorator: SourceLocation
+    path_inputs: list[tuple[str, SourceLocation]]
 
 
 def literal(node: ast.expr) -> str | None:
@@ -58,7 +60,7 @@ def parse_module(path: str, data: bytes) -> Module:
     except SyntaxError, UnicodeError, ValueError, RecursionError, LookupError, tokenize.TokenError:
         return Module([], set(), "module_unreadable")
 
-    def span(node: ast.expr | ast.stmt) -> SourceLocation:
+    def span(node: ast.expr | ast.stmt | ast.arg) -> SourceLocation:
         end = node.end_lineno or node.lineno
 
         def column(line: int, offset: int) -> int:
@@ -178,7 +180,17 @@ def parse_module(path: str, data: bytes) -> Module:
             gaps = []
             if app is None:
                 gaps.append("application_registration_unresolved")
-            if not route or not route.startswith("/") or "<" in route:
+            path_inputs = []
+            converter = re.search(r"<path:([A-Za-z_][A-Za-z0-9_]*)>", route or "")
+            supported_path = bool(converter and len(re.findall(r"<[^>]*>", route or "")) == 1)
+            if supported_path and converter:
+                parameter = converter.group(1)
+                args = [a for a in statement.args.args if a.arg == parameter]
+                if len(args) == 1:
+                    path_inputs.append((parameter, span(args[0])))
+                else:
+                    gaps.append("path_parameter_unresolved")
+            if not route or not route.startswith("/") or ("<" in route and not supported_path):
                 gaps.append("route_unresolved")
             if not methods:
                 gaps.append("http_method_unresolved")
@@ -200,6 +212,7 @@ def parse_module(path: str, data: bytes) -> Module:
                     route,
                     methods if dec.func.attr == "route" else [dec.func.attr.upper()],
                     span(dec),
+                    path_inputs,
                 )
             )
     return Module(handlers, request_import_lines)

@@ -8,6 +8,7 @@ from urllib.parse import urlencode
 
 from vulnproof.models.common import Contract, Sha256
 from vulnproof.planning.repository import plan_repository, unique_fields
+from vulnproof.runner.control_driver import request_target
 from vulnproof.runner.controls import RepositoryControlAttempt, check_repository, read
 from vulnproof.runner.docker import RunnerFailure
 from vulnproof.runner.engine import publish
@@ -64,7 +65,9 @@ def classify(
     ):
         return "failed", "invalid_validation_observation"
     expected_targets = [
-        attempt.request["route"] + "?" + urlencode({attempt.request["query_key"]: value})
+        request_target(attempt.http_request, value)
+        if attempt.http_request is not None
+        else attempt.request["route"] + "?" + urlencode({attempt.request["query_key"]: value})
         for value in (os.path.relpath(path, root), path)
     ]
     if [p.get("request_target") for p in probes] != expected_targets:

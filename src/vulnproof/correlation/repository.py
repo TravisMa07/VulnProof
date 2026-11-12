@@ -30,6 +30,7 @@ from .engine import MAX_CANDIDATES, MAX_DOCUMENT_BYTES, CorrelationFailure, _art
 from .file_reads import arguments, overlaps, same_argument
 
 RULE = "vulnproof.repository.request-file-read"
+ROUTE_RULE = "vulnproof.repository.route-file-read"
 
 
 def digest(data: bytes) -> str:
@@ -180,9 +181,10 @@ def _correlate(scan: Path, analysis: Path) -> str:
     selected = ScanInput.model_validate_json(receipt)
     metadata = json.loads(receipt)
     controlled = selected.profile == "repository-scan-v1"
-    if controlled and metadata.get("rules_sha256") != digest(
-        files("vulnproof.scanning").joinpath("repository.yaml").read_bytes()
-    ):
+    if controlled and metadata.get("rules_sha256") not in {
+        "ab7be84091543e7f00b97d73eff516bded34e9e9d11b68841773c7adcf890fb3",
+        digest(files("vulnproof.scanning").joinpath("repository.yaml").read_bytes()),
+    }:
         raise ValueError("Unknown controlled ruleset")
     source = scan / "snapshot"
     with open_root(source) as fd:
@@ -276,7 +278,7 @@ def _correlate(scan: Path, analysis: Path) -> str:
                 if position:
                     regions.append(position)
             candidates: dict[str, list[str]] = {}
-            if run.scanner != "Semgrep OSS" or entry.rule_id != RULE:
+            if run.scanner != "Semgrep OSS" or entry.rule_id not in (RULE, ROUTE_RULE):
                 status = "unsupported_mapping"
             elif not regions:
                 status = "location_unavailable"

@@ -38,6 +38,12 @@ def binding(handler: Handler, nodes: list[SourceLocation]) -> dict[str, object] 
     matched = [
         (key, loc) for key, loc in handler.inputs if any(same_span(loc, n) for n in local_nodes)
     ]
+    matched_path = [
+        (key, loc)
+        for key, loc in handler.path_inputs
+        if any(same_span(loc, n) for n in local_nodes)
+    ]
+    matched += matched_path
     reasons = list(handler.gaps)
     if len(matched) != 1:
         reasons.append(
@@ -53,7 +59,12 @@ def binding(handler: Handler, nodes: list[SourceLocation]) -> dict[str, object] 
             for r in handler.routes
         ],
         "inputs": [
-            {"kind": "query", "name": key, "location": loc.model_dump()} for key, loc in matched
+            {
+                "kind": "path" if (key, loc) in matched_path else "query",
+                "name": key,
+                "location": loc.model_dump(),
+            }
+            for key, loc in matched
         ],
         "gaps": reasons,
     }

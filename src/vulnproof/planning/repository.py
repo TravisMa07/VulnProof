@@ -1,13 +1,14 @@
 """Plan one bounded GET/query test per eligible repository occurrence."""
 
 import json
+import re
 from collections import Counter
 from itertools import product
 from pathlib import Path, PurePosixPath
 from typing import Annotated, Any, Literal
 from urllib.parse import urlencode
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
 from vulnproof.artifacts import read_local
 from vulnproof.correlation.engine import MAX_DOCUMENT_BYTES
@@ -15,12 +16,18 @@ from vulnproof.correlation.repository import digest, document
 from vulnproof.discovery.repository import discover
 from vulnproof.models.common import Contract, RelativePath, Sha256, relative_path
 from vulnproof.provenance.models import fingerprint
+from vulnproof.runner.control_driver import request_target
 from vulnproof.static.repository import ScanInput
 
 from .engine import PlanningFailure, planning_catalog
 
 Name = Annotated[str, Field(min_length=1, max_length=256)]
 FIELDS = ("entry_point", "method", "route", "query_key")
+
+
+class FixedQuery(Contract):
+    name: Name
+    value: str = Field(max_length=4096)
 
 
 class Endpoint(Contract):
@@ -30,9 +37,11 @@ class Endpoint(Contract):
     method: Literal["GET"] | None = None
     route: Name | None = None
     query_key: Name | None = None
+    path_parameter: Name | None = None
     download_root: Name | None = None
     control_value: Name | None = None
     control_sha256: Sha256 | None = None
+    fixed_query: tuple[FixedQuery, ...] | None = Field(default=None, max_length=64)
 
     @field_validator("entry_point")
     @classmethod
@@ -67,8 +76,23 @@ class Endpoint(Contract):
 
 
 class Configuration(Contract):
-    schema_version: Literal["1.0"]
+    schema_version: Literal["1.0", "1.1", "1.2"]
     endpoints: tuple[Endpoint, ...] = Field(max_length=256)
+
+    @model_validator(mode="after")
+    def versioned_parameters(self) -> Configuration:
+        for endpoint in self.endpoints:
+            if endpoint.path_parameter is not None and (
+                self.schema_version != "1.2" or endpoint.query_key is not None
+            ):
+                raise ValueError("Path parameters require configuration 1.2 without query_key")
+            if endpoint.fixed_query is not None:
+                if self.schema_version not in ("1.1", "1.2"):
+                    raise ValueError("Fixed query parameters require configuration 1.1")
+                names = [p.name for p in endpoint.fixed_query]
+                if len(set(names)) != len(names) or endpoint.query_key in names:
+                    raise ValueError("Duplicate or conflicting fixed query parameter")
+        return self
 
 
 def unique_fields(pairs: list[tuple[str, object]]) -> dict[str, object]:
@@ -127,7 +151,14 @@ def disposition(
         origins = {}
         mismatches = {}
         for field, fact in zip(FIELDS, observed, strict=True):
-            declared = getattr(profile, field, None)
+            declared = (
+                profile.path_parameter
+                if profile
+                and field == "query_key"
+                and isinstance(observed[2], str)
+                and "<path:" in observed[2]
+                else getattr(profile, field, None)
+            )
             if fact is not None and declared is not None and fact != declared:
                 mismatches[field] = {"observed": fact, "declared": declared}
             values.append(fact if fact is not None else declared)
@@ -179,9 +210,20 @@ def disposition(
             reasons.append(field + "_required")
     if method and method != "GET":
         reasons.append("unsupported_method")
+    path_input = (
+        isinstance(route, str)
+        and isinstance(query_key, str)
+        and route.count("<path:" + query_key + ">") == 1
+        and re.search(r"[<>]", route.replace("<path:" + query_key + ">", "")) is None
+    )
+    if path_input and not any(
+        b.get("kind") == "path" and b.get("name") == query_key
+        for s in support
+        for b in paths[s["path_id"]]["bindings"][s["binding_index"]]["inputs"]
+    ):
+        reasons.append("path_parameter_unresolved")
     if isinstance(route, str) and (
-        "<" in route
-        or ">" in route
+        (("<" in route or ">" in route) and not path_input)
         or not route.startswith("/")
         or route.startswith("//")
         or any(ch in route for ch in "?#\\")
@@ -215,6 +257,17 @@ def disposition(
             "runtime_oracle_required",
         ],
     )
+    if profile.fixed_query is not None or path_input:
+        assert profile.control_value is not None
+        request = {
+            "schema_version": "1.1" if path_input else "1.0",
+            "route": route,
+            "query_key": query_key,
+            "fixed_query": [p.model_dump() for p in (profile.fixed_query or ())],
+            "control_value": profile.control_value,
+        }
+        out["control"]["request_target"] = request_target(request, profile.control_value)
+        out["http_request"] = request
     return out
 
 
@@ -254,6 +307,9 @@ def plan_repository(
         return document(
             {
                 **rebuilt,
+                "schema_version": "1.2"
+                if any(r.get("http_request", {}).get("schema_version") == "1.1" for r in rows)
+                else (json.loads(raw_config)["schema_version"] if raw_config else "1.0"),
                 "findings": rows,
                 "counts": Counter(r["status"] for r in rows),
                 "discovery_sha256": digest(supplied),

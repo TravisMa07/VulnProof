@@ -71,6 +71,15 @@ def runtime(detail: ValidationDetail) -> str:
     if attempt is None:
         sections.append("<p>No runtime attempt was retained. See the planning reasons.</p>")
     else:
+        if attempt.http_request is not None:
+            sections.append(
+                "<p>Varied "
+                + ("path" if attempt.http_request["schema_version"] == "1.1" else "query")
+                + " parameter: <strong>"
+                + text(attempt.http_request["query_key"])
+                + "</strong>. Fixed parameters are preserved in every request.</p>"
+            )
+            sections.append(details("Structured GET request", attempt.http_request))
         driver = attempt.driver
         steps: list[tuple[str, object]] = [
             (
@@ -255,7 +264,7 @@ def render_repository_html(report: RepositoryReport) -> str:
                     ("CodeQL correlation", row.get("correlation_status")),
                     (
                         "Request binding",
-                        f"{row.get('method', 'unresolved')} {row.get('route', 'unresolved')} · query: {row.get('query_key', 'unresolved')}",
+                        f"{row.get('method', 'unresolved')} {row.get('route', 'unresolved')} · selected input: {row.get('query_key', 'unresolved')}",
                     ),
                     ("Planning", row.get("status")),
                     (
