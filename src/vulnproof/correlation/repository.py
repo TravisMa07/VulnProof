@@ -11,6 +11,9 @@ from pathlib import Path
 
 from vulnproof.artifacts import read_local
 from vulnproof.intake import Inventory, Location, inventory, obj
+from vulnproof.investigation.capabilities import ROUTE_RULE as ROUTE_RULE
+from vulnproof.investigation.capabilities import RULE as RULE
+from vulnproof.investigation.capabilities import SERVING_RULES, mapping_for
 from vulnproof.models import SourceLocation
 from vulnproof.provenance.filesystem import open_root, scan_tree
 from vulnproof.provenance.models import MAX_FILE_BYTES, fingerprint
@@ -27,10 +30,7 @@ from vulnproof.static.repository import Investigation, ScanInput
 from vulnproof.static.sarif import normalize_sarif
 
 from .engine import MAX_CANDIDATES, MAX_DOCUMENT_BYTES, CorrelationFailure, _artifact
-from .file_reads import arguments, overlaps, same_argument
-
-RULE = "vulnproof.repository.request-file-read"
-ROUTE_RULE = "vulnproof.repository.route-file-read"
+from .file_reads import arguments, overlaps, same_argument, serving_arguments
 
 
 def digest(data: bytes) -> str:
@@ -183,6 +183,7 @@ def _correlate(scan: Path, analysis: Path) -> str:
     controlled = selected.profile == "repository-scan-v1"
     if controlled and metadata.get("rules_sha256") not in {
         "ab7be84091543e7f00b97d73eff516bded34e9e9d11b68841773c7adcf890fb3",
+        "cab7dcca13bd527100a33253930c86654f0dee9e37f938f7a384258d2bf9dd12",
         digest(files("vulnproof.scanning").joinpath("repository.yaml").read_bytes()),
     }:
         raise ValueError("Unknown controlled ruleset")
@@ -259,7 +260,7 @@ def _correlate(scan: Path, analysis: Path) -> str:
     comparisons = 0
     counts: Counter[str] = Counter()
     links = 0
-    operations: dict[str, list[SourceLocation]] = {}
+    operations: dict[tuple[str, str], list[SourceLocation]] = {}
     units = ColumnUnits(source)
     for run in inv.runs:
         for index, entry in enumerate(run.entries):
@@ -278,7 +279,8 @@ def _correlate(scan: Path, analysis: Path) -> str:
                 if position:
                     regions.append(position)
             candidates: dict[str, list[str]] = {}
-            if run.scanner != "Semgrep OSS" or entry.rule_id not in (RULE, ROUTE_RULE):
+            mapping = mapping_for(run.scanner, entry.rule_id)
+            if mapping is None:
                 status = "unsupported_mapping"
             elif not regions:
                 status = "location_unavailable"
@@ -287,15 +289,21 @@ def _correlate(scan: Path, analysis: Path) -> str:
             else:
                 matching_operations: set[SourceLocation] = set()
                 for location in regions:
-                    if location.path not in operations:
-                        operations[location.path] = arguments(source, location.path)
-                    comparisons += len(operations[location.path]) * (
+                    family = mapping.sink_family
+                    operation_key = (location.path, family)
+                    if operation_key not in operations:
+                        operations[operation_key] = (
+                            arguments(source, location.path)
+                            if family == "open"
+                            else serving_arguments(source, location.path, family)
+                        )
+                    comparisons += len(operations[operation_key]) * (
                         1 + len(by_path.get(location.path, []))
                     )
                     if comparisons > 1_000_000:
                         raise ValueError("Correlation comparison limit exceeded")
                     compatible = [
-                        arg for arg in operations[location.path] if overlaps(arg, location)
+                        arg for arg in operations[operation_key] if overlaps(arg, location)
                     ]
                     matching_operations.update(compatible)
                     for candidate in by_path.get(location.path, []):
@@ -320,6 +328,11 @@ def _correlate(scan: Path, analysis: Path) -> str:
                 {
                     "finding": asdict(entry),
                     "producer": run.scanner,
+                    **(
+                        {"sink_family": mapping.sink_family}
+                        if mapping is not None and entry.rule_id in SERVING_RULES
+                        else {}
+                    ),
                     "run": run.index,
                     "regions": [r.model_dump() for r in regions],
                     "location_precision": "columns"

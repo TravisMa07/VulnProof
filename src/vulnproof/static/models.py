@@ -4,6 +4,10 @@ from typing import Literal, Self
 
 from pydantic import Field, model_validator
 
+from vulnproof.investigation.query_policy import PACK_VERSION as PACK_VERSION
+from vulnproof.investigation.query_policy import QUERY_ID as QUERY_ID
+from vulnproof.investigation.query_policy import QUERY_RELATIVE as QUERY_RELATIVE
+from vulnproof.investigation.query_policy import QUERY_SHA256 as QUERY_SHA256
 from vulnproof.models import (
     Artifact,
     Reason,
@@ -16,10 +20,6 @@ from vulnproof.models import (
 from vulnproof.models.common import Contract, Identifier, NonNegative, Sha256, Text
 
 CODEQL_VERSION = "2.27.3"
-PACK_VERSION = "1.8.13"
-QUERY_ID: Literal["py/path-injection"] = "py/path-injection"
-QUERY_SHA256 = "c17ed4b748e8439666371723d7400aa6ae255219e20aedee73cd51f765505a74"
-QUERY_RELATIVE = "qlpacks/codeql/python-queries/1.8.13/Security/CWE-022/PathInjection.ql"
 MAX_LOG_BYTES = 1024 * 1024
 MAX_SARIF_BYTES = 10 * 1024 * 1024
 

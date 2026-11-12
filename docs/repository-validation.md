@@ -190,3 +190,50 @@ reviewed current ruleset and the previous query-only ruleset SHA-256
 `ab7be84091543e7f00b97d73eff516bded34e9e9d11b68841773c7adcf890fb3` for historical
 controlled scans; unknown rule hashes remain rejected. Existing query discovery is
 unchanged. Rebuild prepared images because this change updates the packaged driver.
+
+## Flask file-serving APIs
+
+Repository scans now include two distinct mappings:
+
+- `vulnproof.repository.send-file`: request input flowing into Flask `send_file`'s
+  first argument or `path_or_file` keyword.
+- `vulnproof.repository.send-from-directory`: request input flowing into the
+  **filename** argument of Flask `send_from_directory`, positional or `path=`.
+
+Correlation resolves explicit top-level Flask imports, aliases, and module-qualified
+calls before matching scanner and CodeQL argument spans. It rejects unresolved,
+reimported, reassigned, or shadowed API names and expanded `*args`/`**kwargs` calls.
+Resolution is deliberately conservative: even shadowing in another scope can leave
+a call unsupported. Source inspection is bounded to 256 KiB per module; it never
+imports application modules. Calls through wrappers and dynamically modified imports
+are not established by this resolver. Directory arguments are not interchangeable
+with filename arguments; dynamic-directory validation is outside this mapping.
+
+Both APIs reuse existing query or route request profiles and the current restricted
+marker validator. No runner permissions, image recipe, or result semantics change.
+The supplied `download_root` remains the intended application boundary; its
+configuration does not establish that the application enforces containment.
+
+Observed with the pinned tools: the aliased `send_file(name)` case produced a
+Semgrep finding and CodeQL path. The ordinary contained
+`send_from_directory('/application', name)` case produced a Semgrep finding but no
+CodeQL path. The latter remains accounted for without a runnable draft; the tool
+does not suppress it or manufacture a path. Independent container tests with clearly
+authored static evidence exercise the legitimate response and refusal of the marker
+requests. These observations do not establish universal safety for file-serving APIs.
+
+The correlator retains the sink family in its per-occurrence record. Neighboring
+calls or other API families cannot corroborate it unless their precise relevant
+argument matches. Historical query-only and route/open ruleset hashes remain
+recognized; unknown hashes remain rejected. The new scanner rules change scan
+receipts, so image preparation must correspond to the chosen retained scan.
+Blueprint registration and external-application preparation remain subsequent work.
+
+A further pinned-tool observation: `send_file(path_or_file=name)` was reported by
+Semgrep but yielded no CodeQL path, unlike the positional form. Keyword argument
+resolution is supported, but that does not supply missing CodeQL evidence. Its
+runtime behavior is covered independently with authored evidence. Flask's relative
+`send_file` paths resolve against the application root directory; the legitimate
+control and intended boundary must reflect that location rather than assuming the
+process working directory. The test applications place a synthetic legitimate file
+there. No external application source is rewritten by this feature.

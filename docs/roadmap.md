@@ -1,8 +1,12 @@
 # Implementation roadmap
 
+The active sequence is now the [eight-PR completion roadmap](completion-roadmap.md).
+The original expansion below remains historical context; it does not require
+framework-by-framework completion before broader capability work.
+
 Build one roadmap item at a time. Discuss the design and tradeoffs, agree on scope
 and acceptance criteria, implement on a focused branch, verify, and open a PR.
-Wait for the project owner's explicit merge authorization before moving on.
+Use stacked PRs when the owner defers merging; merging always requires owner authorization.
 Split an item if it becomes too large to review; do not combine unrelated items.
 
 ## Active expansion

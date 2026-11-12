@@ -88,8 +88,12 @@ def bundle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     query.parent.mkdir(parents=True)
     query.write_text("// Synthetic trusted test query\n")
     (query.parents[2] / "qlpack.yml").write_text("name: codeql/python-queries\nversion: 1.8.13\n")
+    from dataclasses import replace
+
     monkeypatch.setattr(
-        analysis_module, "QUERY_SHA256", hashlib.sha256(query.read_bytes()).hexdigest()
+        analysis_module,
+        "PATH_QUERY",
+        replace(analysis_module.PATH_QUERY, sha256=hashlib.sha256(query.read_bytes()).hexdigest()),
     )
     (bundle / "sarif.json").write_bytes(encode(sarif()))
     (bundle / "control.json").write_text("{}")

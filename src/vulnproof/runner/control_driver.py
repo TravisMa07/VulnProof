@@ -16,6 +16,7 @@ import subprocess
 import sys
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from types import MappingProxyType
 from typing import Any
 from urllib.parse import quote, urlencode
 
@@ -230,6 +231,9 @@ def probe_files(port: int, request: dict[str, Any]) -> dict[str, Any]:
     return evidence
 
 
+VALIDATION_HANDLERS = MappingProxyType({"cwe22-file-read-v1": probe_files})
+
+
 def observe(request: dict[str, Any]) -> dict[str, Any]:
     result: dict[str, Any] = {
         "schema_version": "1.0",
@@ -243,8 +247,12 @@ def observe(request: dict[str, Any]) -> dict[str, Any]:
         "body_bytes": None,
         "truncated": False,
     }
+    handler = VALIDATION_HANDLERS.get(request.get("validator_id", "cwe22-file-read-v1"))
     if request.get("validation"):
         result["validation"] = None
+        if handler is None:
+            result["reason"] = "unsupported_validator"
+            return result
     try:
         result["checks"] = restrictions()
         if not all(result["checks"].values()):
@@ -300,7 +308,8 @@ def observe(request: dict[str, Any]) -> dict[str, Any]:
             else:
                 result.update(control="passed", reason="control_matched")
                 if request.get("validation"):
-                    result["validation"] = probe_files(port, request)
+                    assert handler is not None
+                    result["validation"] = handler(port, request)
         finally:
             connection.close()
     except OSError, ValueError, http.client.HTTPException:

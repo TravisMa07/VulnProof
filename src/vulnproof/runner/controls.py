@@ -9,6 +9,11 @@ from pydantic import Field, model_validator
 
 from vulnproof.artifacts import read_local
 from vulnproof.correlation.engine import MAX_DOCUMENT_BYTES
+from vulnproof.investigation.contracts import (
+    ApplicationProfile,
+    ExecutionContext,
+    invocation_from_request,
+)
 from vulnproof.models import Reason
 from vulnproof.models.common import Contract, ImageId, Sha256
 from vulnproof.planning.engine import planning_catalog
@@ -35,6 +40,7 @@ class ControlObservation(Contract):
         "application_import_failed",
         "application_symbol_missing",
         "unsupported_application",
+        "unsupported_validator",
         "debug_enabled",
         "server_start_failed",
         "startup_timeout",
@@ -72,7 +78,7 @@ class ControlObservation(Contract):
 
 
 class RepositoryControlAttempt(Contract):
-    schema_version: Literal["1.0", "1.1"] = "1.0"
+    schema_version: Literal["1.0", "1.1", "1.2"] = "1.0"
     profile: Literal["repository-control-v1", "repository-validation-attempt-v1"] = (
         "repository-control-v1"
     )
@@ -93,6 +99,8 @@ class RepositoryControlAttempt(Contract):
     )
     request: dict[str, str]
     http_request: dict[str, Any] | None = None
+    context: ExecutionContext | None = None
+    validator_id: str | None = None
     requested: ExecutionRequirements
     policy_verified: bool
     execution: Literal[
@@ -107,7 +115,9 @@ class RepositoryControlAttempt(Contract):
 
     @model_validator(mode="after")
     def request_profile(self) -> Self:
-        if (self.schema_version == "1.1") != (self.http_request is not None):
+        if (self.schema_version == "1.0" and self.http_request is not None) or (
+            self.schema_version == "1.1" and self.http_request is None
+        ):
             raise ValueError("Request profile requires attempt schema 1.1")
         if self.http_request is not None:
             target = request_target(self.http_request, self.http_request.get("control_value", ""))
@@ -116,6 +126,31 @@ class RepositoryControlAttempt(Contract):
             for key in ("route", "query_key"):
                 if key in self.request and self.request[key] != self.http_request[key]:
                     raise ValueError("Request binding differs from profile")
+        if self.schema_version != "1.2" and self.validator_id is not None:
+            raise ValueError("Validator identity requires attempt schema 1.2")
+        if self.schema_version == "1.2" and (
+            self.authorization_scope == "repository_cwe22_validation"
+        ) != (self.validator_id is not None):
+            raise ValueError("Validation attempt requires an explicit validator identity")
+        if (self.schema_version == "1.2") != (self.context is not None):
+            raise ValueError("Execution context requires attempt schema 1.2")
+        if self.context is not None:
+            app = self.context.application
+            if (
+                app.source_fingerprint != self.source_fingerprint
+                or app.image_id != self.image_id
+                or app.preparation_sha256 != self.preparation_sha256
+                or app.entry_point != self.request.get("entry_point")
+            ):
+                raise ValueError("Application context differs from attempt provenance")
+            invocation_request = {
+                **self.request,
+                "query_key": self.request.get("query_key", self.context.invocation.input_name),
+            }
+            if self.context.invocation != invocation_from_request(
+                invocation_request, self.http_request
+            ):
+                raise ValueError("Invocation context differs from attempt request")
         return self
 
     @property
@@ -230,6 +265,7 @@ def check_repository(
             driver_request["http_request"] = entry["http_request"]
         if authorize_validation:
             driver_request.update(
+                validator_id=entry["template_id"],
                 validation=True,
                 download_root=entry["download_root"],
                 route=entry["route"],
@@ -356,7 +392,19 @@ def check_repository(
                     )
                 )
         report = RepositoryControlAttempt(
-            schema_version="1.1" if entry.get("http_request") is not None else "1.0",
+            schema_version="1.2",
+            validator_id=entry["template_id"] if authorize_validation else None,
+            context=ExecutionContext(
+                application=ApplicationProfile(
+                    source_fingerprint=image.source_fingerprint,
+                    entry_point=image.configuration.entry_point,
+                    image_id=image.image_id,
+                    preparation_sha256=sha(prepared_data),
+                ),
+                invocation=invocation_from_request(
+                    {**request, "query_key": entry["query_key"]}, entry.get("http_request")
+                ),
+            ),
             http_request=entry.get("http_request"),
             profile="repository-validation-attempt-v1"
             if authorize_validation

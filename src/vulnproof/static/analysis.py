@@ -9,6 +9,7 @@ from importlib.resources import files
 from pathlib import Path
 from uuid import uuid4
 
+from vulnproof.investigation.capabilities import PATH_QUERY
 from vulnproof.models import Artifact, Reason, SourceBinding, ToolIdentity
 from vulnproof.provenance import CaptureFailure, verify_capture
 from vulnproof.provenance.filesystem import open_root, scan_tree
@@ -18,8 +19,6 @@ from .models import (
     CODEQL_VERSION,
     MAX_SARIF_BYTES,
     PACK_VERSION,
-    QUERY_RELATIVE,
-    QUERY_SHA256,
     AnalysisDocument,
     CommandRecord,
     Fixture,
@@ -78,7 +77,7 @@ def check_bundle(
     bundle: Path, output: Path, env: dict[str, str], records: list[CommandRecord]
 ) -> ToolIdentity:
     executable = bundle / "codeql"
-    query = bundle / QUERY_RELATIVE
+    query = bundle / PATH_QUERY.relative_path
     if not executable.is_file():
         raise AnalysisFailure(
             "codeql_missing",
@@ -98,7 +97,7 @@ def check_bundle(
         raise AnalysisFailure("codeql_version", "Expected prepared CodeQL 2.27.3")
     if (
         not query.is_file()
-        or hashlib.sha256(query.read_bytes()).hexdigest() != QUERY_SHA256
+        or hashlib.sha256(query.read_bytes()).hexdigest() != PATH_QUERY.sha256
         or re.search(
             r"^version:\s*1\.8\.13\s*$",
             (query.parents[2] / "qlpack.yml").read_text(),
@@ -119,7 +118,7 @@ def query_source(
     bundle: Path, output: Path, env: dict[str, str], records: list[CommandRecord]
 ) -> Path:
     executable = bundle / "codeql"
-    query = bundle / QUERY_RELATIVE
+    query = bundle / PATH_QUERY.relative_path
     work = output / "work"
     source = work / "source"
     sarif = output / "diagnostics/raw.sarif"
