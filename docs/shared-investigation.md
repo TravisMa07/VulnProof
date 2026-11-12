@@ -59,3 +59,7 @@ capability or establish its feasibility.
 The driver changed, so existing prepared images must be rebuilt. The receipt still
 binds its hash and recipe. Isolation limits, authorization and the local trust model
 remain unchanged. Driver/application process separation is not hostile-code attestation.
+
+The [PR 3 injection validators](injection-validation.md) now exercise these shared gates
+with shell-output, synthetic SQLite data and Jinja expression observations. They reuse
+the PR 2 observer lifecycle and retain their own query, invocation and oracle contracts.

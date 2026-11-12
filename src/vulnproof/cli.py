@@ -17,7 +17,11 @@ from .correlation.repository import correlate_repository, prepare_import, prepar
 from .discovery.repository import discover
 from .ingest import ImportFailure, ingest_sarif
 from .ingest.sarif import MAX_INPUT_BYTES
+from .injections.planning import plan_injections
+from .injections.reporting import write_injection_report
+from .injections.runtime import validate_injection
 from .intake import inventory
+from .investigation.capabilities import INJECTION_QUERIES, PATH_QUERY
 from .onboarding.planning import inspect_application
 from .onboarding.preparation import prepare_application
 from .onboarding.runtime import exercise_application
@@ -157,6 +161,32 @@ def main(argv: Sequence[str] | None = None) -> int:
         required=True,
         help="Trusted prepared directory containing the CodeQL executable",
     )
+    investigation.add_argument(
+        "--capability", choices=("path", "command", "sql", "template"), default="path"
+    )
+    for name in ("plan-injections", "validate-injection", "report-injections"):
+        injection_parser = commands.add_parser(
+            name, help="Plan, validate or report bounded injection evidence"
+        )
+        for flag in ("scan", "output"):
+            injection_parser.add_argument("--" + flag, type=Path, required=True)
+        injection_parser.add_argument(
+            "--investigation",
+            type=Path,
+            action="append",
+            default=[],
+            help="Retained CodeQL directory; repeat for each capability",
+        )
+        injection_parser.add_argument("--config", type=Path)
+        if name != "plan-injections":
+            injection_parser.add_argument("--plan", type=Path, required=True)
+        if name == "validate-injection":
+            injection_parser.add_argument("--finding-id", required=True)
+            for flag in ("onboarding", "application-config", "preparation", "docker-socket"):
+                injection_parser.add_argument("--" + flag, type=Path, required=True)
+            injection_parser.add_argument("--authorize-validation", action="store_true")
+        if name == "report-injections":
+            injection_parser.add_argument("--validation", type=Path, action="append", default=[])
     correlation = commands.add_parser("correlate", help="Link findings to candidate static paths")
     correlation.add_argument("--capture", type=Path, required=True)
     correlation.add_argument("--analysis", type=Path, required=True)
@@ -262,6 +292,70 @@ def main(argv: Sequence[str] | None = None) -> int:
             application_parser.add_argument("--authorize-execution", action="store_true")
     args = parser.parse_args(argv)
     try:
+        if args.command in ("plan-injections", "validate-injection", "report-injections"):
+            from .injections.planning import LIMIT
+            from .onboarding.planning import read
+            from .static.repository import Investigation
+
+            selected_investigations = {}
+            for directory in args.investigation:
+                injected_analysis = Investigation.model_validate_json(
+                    read(directory / "investigation.json", LIMIT)
+                )
+                key = next(
+                    (
+                        key
+                        for key, query in INJECTION_QUERIES.items()
+                        if query.id == injected_analysis.query_id
+                    ),
+                    None,
+                )
+                if key is None or key in selected_investigations:
+                    raise ValueError("Unknown or duplicate injection investigation")
+                selected_investigations[key] = directory
+            if args.command == "plan-injections":
+                if any(
+                    args.output.resolve().is_relative_to(p.resolve())
+                    for p in (args.scan, *args.investigation)
+                ):
+                    raise ValueError("Output must be separate from retained evidence")
+                injection_plans = plan_injections(args.scan, selected_investigations, args.config)
+                _publish(args.output, injection_plans.model_dump_json(indent=2) + "\n")
+                print(
+                    json.dumps(
+                        {
+                            "findings": len(injection_plans.entries),
+                            "drafts": sum(e.status == "draft" for e in injection_plans.entries),
+                        }
+                    )
+                )
+                return 0
+            if args.command == "report-injections":
+                write_injection_report(
+                    scan=args.scan,
+                    investigations=selected_investigations,
+                    config=args.config,
+                    plan=args.plan,
+                    validations=tuple(args.validation),
+                    output=args.output,
+                )
+                print(str(args.output / "report.html"))
+                return 0
+            injection_result = validate_injection(
+                scan=args.scan,
+                investigations=selected_investigations,
+                config=args.config,
+                plan=args.plan,
+                finding_id=args.finding_id,
+                onboarding=args.onboarding,
+                application_config=args.application_config,
+                preparation=args.preparation,
+                socket=args.docker_socket,
+                output=args.output,
+                authorize_validation=args.authorize_validation,
+            )
+            print(injection_result.decision.model_dump_json())
+            return int(injection_result.decision.classification == "failed")
         if args.command == "inspect-application":
             if args.output.resolve().is_relative_to(args.scan.resolve()):
                 raise RunnerFailure(
@@ -653,7 +747,14 @@ def main(argv: Sequence[str] | None = None) -> int:
             previous = signal.signal(signal.SIGTERM, terminate)
             try:
                 if args.command == "investigate":
-                    investigation_report = investigate(args.scan, args.output, args.codeql_bundle)
+                    investigation_report = investigate(
+                        args.scan,
+                        args.output,
+                        args.codeql_bundle,
+                        PATH_QUERY
+                        if args.capability == "path"
+                        else INJECTION_QUERIES[args.capability],
+                    )
                     print(investigation_report.model_dump_json(include={"outcome", "diagnostics"}))
                     return int(investigation_report.outcome != "completed")
                 report = analyze_capture(args.capture, args.output, args.codeql_bundle)
@@ -716,7 +817,21 @@ def main(argv: Sequence[str] | None = None) -> int:
     ) as exc:
         print(f"{exc.code}: {exc}", file=sys.stderr)
         return 2
+    except ValueError:
+        if args.command in ("plan-injections", "validate-injection", "report-injections"):
+            print(
+                "invalid_injection_evidence: Inputs are inconsistent, unsupported, or edited",
+                file=sys.stderr,
+            )
+            return 2
+        raise
     except KeyboardInterrupt:
+        if args.command == "validate-injection":
+            print(
+                "validation_interrupted: Cleanup attempted; see retained result and reservation",
+                file=sys.stderr,
+            )
+            return 130
         if args.command in ("exercise-application", "prepare-application"):
             print(
                 "application_interrupted: See retained diagnostics and resource reservation",

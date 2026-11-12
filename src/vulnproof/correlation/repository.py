@@ -182,6 +182,7 @@ def _correlate(scan: Path, analysis: Path) -> str:
     metadata = json.loads(receipt)
     controlled = selected.profile == "repository-scan-v1"
     if controlled and metadata.get("rules_sha256") not in {
+        "2eb79a481152b93e343b1d9d3f70452496fa94cf9de751612bfcec2c33f26ef4",
         "ab7be84091543e7f00b97d73eff516bded34e9e9d11b68841773c7adcf890fb3",
         "cab7dcca13bd527100a33253930c86654f0dee9e37f938f7a384258d2bf9dd12",
         digest(files("vulnproof.scanning").joinpath("repository.yaml").read_bytes()),
@@ -210,6 +211,7 @@ def _correlate(scan: Path, analysis: Path) -> str:
         or report.source_fingerprint != selected.source_fingerprint
         or report.component != selected.component
         or report.query_sha256 != QUERY_SHA256
+        or report.query_id != "py/path-injection"
     ):
         raise ValueError("Investigation does not match selected scan and query")
     if report.outcome in ("completed", "partial") and (

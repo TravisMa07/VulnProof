@@ -95,6 +95,11 @@ def bundle(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
         "PATH_QUERY",
         replace(analysis_module.PATH_QUERY, sha256=hashlib.sha256(query.read_bytes()).hexdigest()),
     )
+    monkeypatch.setattr(
+        analysis_module,
+        "QUERIES",
+        {**analysis_module.QUERIES, analysis_module.PATH_QUERY.id: analysis_module.PATH_QUERY},
+    )
     (bundle / "sarif.json").write_bytes(encode(sarif()))
     (bundle / "control.json").write_text("{}")
     executable = bundle / "codeql"

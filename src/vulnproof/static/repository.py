@@ -7,6 +7,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from vulnproof.artifacts import read_local
+from vulnproof.investigation.capabilities import PATH_QUERY, QuerySpec
 from vulnproof.models import Artifact, Reason, ToolIdentity
 from vulnproof.models.common import Contract, Sha256, relative_path
 from vulnproof.provenance.filesystem import open_root, scan_tree
@@ -34,7 +35,7 @@ class Investigation(Contract):
     scan_sha256: Sha256
     source_fingerprint: Sha256
     component: str | None
-    query_id: Literal["py/path-injection"] = QUERY_ID
+    query_id: str = QUERY_ID
     query_sha256: Sha256 = QUERY_SHA256
     tool: ToolIdentity | None = None
     outcome: Literal["completed", "partial", "unsupported", "failed"] = "failed"
@@ -44,7 +45,9 @@ class Investigation(Contract):
     diagnostics: tuple[Reason, ...] = ()
 
 
-def investigate(scan: Path, output: Path, bundle: Path) -> Investigation:
+def investigate(
+    scan: Path, output: Path, bundle: Path, query_spec: QuerySpec = PATH_QUERY
+) -> Investigation:
     scan, output, bundle = scan.absolute(), output.absolute(), bundle.resolve()
     if any(
         a.resolve().is_relative_to(b.resolve())
@@ -72,6 +75,8 @@ def investigate(scan: Path, output: Path, bundle: Path) -> Investigation:
     source = work / "source"
     source.mkdir(parents=True)
     report = Investigation(
+        query_id=query_spec.id,
+        query_sha256=query_spec.sha256,
         scan_sha256=hashlib.sha256(receipt).hexdigest(),
         source_fingerprint=selected.source_fingerprint,
         component=selected.component,
@@ -94,8 +99,8 @@ def investigate(scan: Path, output: Path, bundle: Path) -> Investigation:
             )
         else:
             env = _environment(work, bundle)
-            report.tool = check_bundle(bundle, output, env, records)
-            sarif = query_source(bundle, output, env, records)
+            report.tool = check_bundle(bundle, output, env, records, query_spec)
+            sarif = query_source(bundle, output, env, records, query_spec)
             with open_root(source) as fd:
                 after = scan_tree(fd)
             if after.files != copied.files or after.excluded_paths:
@@ -103,7 +108,7 @@ def investigate(scan: Path, output: Path, bundle: Path) -> Investigation:
                     "source_changed", "Private analysis copy changed during extraction"
                 )
             report.results, report.diagnostics = normalize_sarif(
-                sarif.read_bytes(), source, copied.files
+                sarif.read_bytes(), source, copied.files, query_spec.id
             )
             report.outcome = (
                 "partial"

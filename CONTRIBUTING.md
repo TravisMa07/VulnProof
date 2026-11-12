@@ -171,3 +171,7 @@ roadmap item while the current change is awaiting review or merge authorization.
 The application-onboarding stage uses separately authorized preparation and execution.
 See [application onboarding](docs/application-onboarding.md) for profile limits,
 network policy, synthetic state, pinned upstream reproduction and opt-in tests.
+
+For completion-roadmap PR 3, use the [injection validation guide](docs/injection-validation.md)
+and its actual-tool benchmark. Keep synthetic oracle regressions distinct from
+source-bound finding confirmations.

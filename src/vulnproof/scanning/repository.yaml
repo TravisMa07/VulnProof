@@ -105,3 +105,44 @@ rules:
               - pattern: flask.send_from_directory($DIR, $PATH, ...)
               - pattern: flask.send_from_directory(..., path=$PATH, ...)
           - focus-metavariable: $PATH
+
+  - id: vulnproof.repository.command-injection
+    languages: [python]
+    mode: taint
+    message: Request input reaches a supported command sink.
+    severity: WARNING
+    pattern-sources:
+      - pattern: request.args.get(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: subprocess.check_output($VALUE, shell=True, ...)
+              - pattern: subprocess.run($VALUE, shell=True, ...)
+              - pattern: os.system($VALUE)
+          - focus-metavariable: $VALUE
+
+  - id: vulnproof.repository.sql-injection
+    languages: [python]
+    mode: taint
+    message: Request input reaches a supported sql sink.
+    severity: WARNING
+    pattern-sources:
+      - pattern: request.args.get(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: $DB.execute($VALUE, ...)
+          - focus-metavariable: $VALUE
+
+  - id: vulnproof.repository.template-injection
+    languages: [python]
+    mode: taint
+    message: Request input reaches a supported template sink.
+    severity: WARNING
+    pattern-sources:
+      - pattern: request.args.get(...)
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: flask.render_template_string($VALUE, ...)
+          - focus-metavariable: $VALUE

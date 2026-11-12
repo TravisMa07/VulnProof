@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, Literal
 from uuid import uuid4
 
+from vulnproof.injections.models import ValidationRequest
 from vulnproof.models.common import Contract, Sha256
 from vulnproof.runner.docker import DockerClient, RunnerFailure
 from vulnproof.runner.engine import cleanup_container, cleanup_signals, inspection, publish
@@ -21,7 +22,7 @@ from .preparation import recipes, worker_bytes
 
 
 class ApplicationAttempt(Contract):
-    schema_version: Literal["1.0"] = "1.0"
+    schema_version: Literal["1.0", "1.1"] = "1.0"
     profile: Literal["application-exercise-v1"] = "application-exercise-v1"
     onboarding: OnboardingPlan
     prepared: PreparedApplication
@@ -43,6 +44,7 @@ class ApplicationAttempt(Contract):
     cleanup: dict[str, bool]
     commands: tuple[DockerCommand, ...]
     vulnerability_assessment: None = None
+    validation_request: ValidationRequest | None = None
 
 
 def verify_network(value: dict[str, Any], name: str) -> None:
@@ -112,6 +114,7 @@ def exercise_application(
     socket: Path,
     output: Path,
     authorize_execution: bool,
+    validation: ValidationRequest | None = None,
 ) -> ApplicationAttempt:
     if not authorize_execution:
         raise RunnerFailure("authorization_required", "Authorize application execution explicitly")
@@ -141,6 +144,18 @@ def exercise_application(
         raise RunnerFailure(
             "preparation_mismatch",
             "Preparation differs from installed worker, source or onboarding plan; rebuild",
+        )
+    if validation is not None and app.kind != "http":
+        raise RunnerFailure(
+            "unsupported_invocation", "Injection validators require HTTP observations"
+        )
+    if (
+        validation is not None
+        and validation.capability == "sql"
+        and not any("VULNPROOF_VALIDATION_MARKER" in arg for step in app.initialize for arg in step)
+    ):
+        raise RunnerFailure(
+            "synthetic_state_missing", "SQL initialization must insert the fresh synthetic marker"
         )
     if any(
         a.resolve().is_relative_to(b.resolve())
@@ -180,6 +195,11 @@ def exercise_application(
         exclude={"controls", "readiness", "wheels", "image_directories"}
     )
     observer_payload = app.model_dump_json(include={"port", "readiness", "controls"})
+    if validation is not None:
+        target_payload = json.dumps({**json.loads(target_payload), "validation_nonce": nonce})
+        observer_payload = json.dumps(
+            {**json.loads(observer_payload), "validation": validation.model_dump(mode="json")}
+        )
     previous: dict[signal.Signals, Any] = {}
 
     def terminate(signum: int, frame: object) -> None:
@@ -258,6 +278,7 @@ def exercise_application(
                 "callbacks",
                 "egress_probe_connected",
                 "runtime_checks",
+                "validation",
             }:
                 raise ValueError("Invalid observer document")
             observer_state = inspection(client.run(["inspect", observer_name], "observer-state"))[
@@ -359,6 +380,8 @@ def exercise_application(
             if not all(clean.values()):
                 outcome, reason = "failed", "cleanup_unverified"
             result = ApplicationAttempt(
+                schema_version="1.1" if validation is not None else "1.0",
+                validation_request=validation,
                 onboarding=selected,
                 prepared=receipt,
                 plan_sha256=hashlib.sha256(raw).hexdigest(),
