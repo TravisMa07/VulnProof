@@ -16,6 +16,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
+from urllib.parse import urlencode
 
 STATE = Path("/tmp/vulnproof-state")
 STATUS = Path("/tmp/vulnproof-status.json")
@@ -119,6 +120,8 @@ def application(config: dict[str, Any]) -> dict[str, Any]:
         **config["environment"],
     }
     environment["VULNPROOF_STATE_DIR"] = str(STATE)
+    if config.get("validation_nonce"):
+        environment["VULNPROOF_VALIDATION_MARKER"] = "VP_" + config["validation_nonce"]
     history: list[dict[str, Any]] = []
     for command in config["initialize"]:
         write_status({"stage": "initialize", "outcome": "running", "initialization": history})
@@ -162,6 +165,40 @@ def runtime_checks() -> dict[str, bool]:
         len(row) > 3 and row[1] == "00000000" and int(row[3], 16) & 1 for row in routes
     )
     return checks
+
+
+def injection_probes(capability: str, value: str, nonce: str) -> list[dict[str, str]]:
+    """Fixed bounded templates; request text never contains its complete expected marker."""
+    marker = "VP_" + nonce
+    left, right = marker[:19], marker[19:]
+    if capability == "command":
+        return [
+            {
+                "role": "probe",
+                "value": value + "; printf %s '" + left + "'" + "'" + right + "'",
+                "marker": marker,
+            }
+        ]
+    if capability == "template":
+        return [
+            {"role": "probe", "value": "{{ '" + left + "' ~ '" + right + "' }}", "marker": marker}
+        ]
+    if capability == "sql":
+        return [
+            {"role": "negative", "value": value + "' AND '1'='2' -- ", "marker": marker},
+            {"role": "probe", "value": value + "' OR '1'='1' -- ", "marker": marker},
+        ]
+    raise ValueError("Unknown installed injection validator")
+
+
+def injection_target(profile: dict[str, Any], value: str) -> str:
+    """GET/query-only representation checked before dispatch by GetRequest."""
+    pairs = [(p["name"], p["value"]) for p in profile["fixed_query"]]
+    pairs.append((profile["query_key"], value))
+    target = str(profile["route"]) + "?" + urlencode(pairs)
+    if len(target) > 16384:
+        raise ValueError("Request target exceeds limit")
+    return target
 
 
 def observer(config: dict[str, Any], app: str, nonce: str) -> dict[str, Any]:
@@ -215,6 +252,7 @@ def observer(config: dict[str, Any], app: str, nonce: str) -> dict[str, Any]:
         "callbacks": [],
         "egress_probe_connected": False,
         "runtime_checks": runtime_checks(),
+        "validation": None,
     }
     if not all(result["runtime_checks"].values()):
         result["reason"] = "observer_restriction_check_failed"
@@ -235,7 +273,11 @@ def observer(config: dict[str, Any], app: str, nonce: str) -> dict[str, Any]:
         result["egress_probe_connected"] = False
 
     def request(
-        method: str, target: str, headers: dict[str, str], body: str | None
+        method: str,
+        target: str,
+        headers: dict[str, str],
+        body: str | None,
+        marker: bytes | None = None,
     ) -> dict[str, Any]:
         nonlocal total
         if time.monotonic() >= deadline:
@@ -266,6 +308,7 @@ def observer(config: dict[str, Any], app: str, nonce: str) -> dict[str, Any]:
                 "body_bytes": len(data),
                 "body_sha256": hashlib.sha256(data).hexdigest(),
                 "truncated": False,
+                **({"marker_present": marker in data} if marker is not None else {}),
             }
         finally:
             connection.close()
@@ -298,6 +341,43 @@ def observer(config: dict[str, Any], app: str, nonce: str) -> dict[str, Any]:
             if not observed["matched"]:
                 result["reason"] = "control_mismatch"
                 return result
+        validation = config.get("validation")
+        if validation:
+            marker = ("VP_" + nonce).encode()
+            profile = validation["request"]
+            control = request(
+                "GET", injection_target(profile, profile["control_value"]), {}, None, marker
+            )
+            matched = (
+                control["status"] == 200
+                and control["body_sha256"] == validation["control_sha256"]
+                and not control["marker_present"]
+            )
+            attempts: list[dict[str, Any]] = []
+            result["validation"] = {
+                "capability": validation["capability"],
+                "nonce": nonce,
+                "control": control,
+                "control_valid": matched,
+                "attempts": attempts,
+            }
+            if not matched:
+                result["reason"] = "validation_control_failed"
+                return result
+            for probe in injection_probes(
+                validation["capability"], profile["control_value"], nonce
+            ):
+                observed = request(
+                    "GET", injection_target(profile, probe["value"]), {}, None, marker
+                )
+                attempts.append({"role": probe["role"], **observed})
+                if probe["role"] == "negative" and (
+                    observed["status"] != 200
+                    or observed["marker_present"]
+                    or observed["body_sha256"] != hashlib.sha256(b"").hexdigest()
+                ):
+                    result["reason"] = "sql_negative_control_failed"
+                    return result
         result.update(outcome="completed", reason="controls_passed")
     except (OSError, ValueError, http.client.HTTPException) as exc:
         result["reason"] = "response_limit" if str(exc) == "response_limit" else "request_failed"

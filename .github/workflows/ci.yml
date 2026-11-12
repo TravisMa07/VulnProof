@@ -332,3 +332,54 @@ jobs:
         env:
           VULNPROOF_CONTROL_DOCKER_SOCKET: /var/run/docker.sock
         run: uv run --locked pytest tests/integration/test_onboarding_docker.py -q
+
+  injection-validation:
+    name: Command SQL and template injection benchmark
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.6"
+          enable-cache: false
+      - name: Prepare pinned analysis tools and Linux wheels
+        run: |
+          uv python install
+          uv sync --locked
+          uv run --locked python scripts/prepare_semgrep.py
+          uv run --locked python scripts/prepare_codeql.py
+          mkdir -p .cache/injection-wheels
+          uv run --isolated --no-project --python 3.14.10 --with pip==26.2.2 python -m pip download --require-hashes --only-binary=:all: -r fixtures/cwe22/requirements.lock --dest .cache/injection-wheels
+      - name: Verify control failure stopping conditions
+        env:
+          VULNPROOF_CONTROL_DOCKER_SOCKET: /var/run/docker.sock
+          VULNPROOF_CONTROL_WHEELHOUSE: .cache/injection-wheels
+        run: uv run --locked pytest tests/integration/test_injection_docker.py -q
+      - name: Build and exercise the installed engine
+        run: |
+          uv build
+          uv run --isolated --no-project --python 3.14.10 --with dist/*.whl python -I scripts/check_injection_benchmark.py --fixtures fixtures/injections --semgrep-environment .cache/semgrep/1.184.0 --codeql-bundle .cache/codeql/2.27.3/codeql --wheelhouse .cache/injection-wheels --docker-socket /var/run/docker.sock --output /tmp/vulnproof-injection-benchmark --authorize-preparation --authorize-validation
+      - name: Verify retained evidence integrity
+        env:
+          VULNPROOF_INJECTION_BENCHMARK: /tmp/vulnproof-injection-benchmark
+        run: uv run --locked pytest tests/integration/test_injection_evidence.py -q
+      - name: Retain bounded benchmark evidence
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: injection-validation-evidence
+          path: |
+            /tmp/vulnproof-injection-benchmark/benchmark.json
+            /tmp/vulnproof-injection-benchmark/report/
+            /tmp/vulnproof-injection-benchmark/analysis-*/diagnostics/
+            /tmp/vulnproof-injection-benchmark/scan/diagnostics/
+            /tmp/vulnproof-injection-benchmark/*/run-*/result.json
+            /tmp/vulnproof-injection-benchmark/*/run-*/execution/result.json
+            /tmp/vulnproof-injection-benchmark/*/run-*/execution/diagnostics/
+          include-hidden-files: true
+          if-no-files-found: warn
+          retention-days: 3

@@ -126,11 +126,13 @@ def _location(
     return location
 
 
-def _check_rule(result: dict[str, object], driver: dict[str, object]) -> None:
-    if result.get("ruleId") != QUERY_ID:
+def _check_rule(
+    result: dict[str, object], driver: dict[str, object], query_id: str = QUERY_ID
+) -> None:
+    if result.get("ruleId") != query_id:
         raise ValueError("unexpected query result")
     reference = obj(result.get("rule", {}))
-    if reference.get("id", QUERY_ID) != QUERY_ID or "toolComponent" in reference:
+    if reference.get("id", query_id) != query_id or "toolComponent" in reference:
         raise ValueError("conflicting rule reference")
     indexes = [result["ruleIndex"]] if "ruleIndex" in result else []
     if "index" in reference:
@@ -139,12 +141,12 @@ def _check_rule(result: dict[str, object], driver: dict[str, object]) -> None:
         rules = array(driver.get("rules", []))
         if type(index) is not int or not 0 <= index < len(rules):
             raise ValueError("invalid rule index")
-        if obj(rules[index]).get("id") != QUERY_ID:
+        if obj(rules[index]).get("id") != query_id:
             raise ValueError("rule index disagrees with query identity")
 
 
 def normalize_sarif(
-    data: bytes, source_root: Path, files: tuple[CapturedFile, ...]
+    data: bytes, source_root: Path, files: tuple[CapturedFile, ...], query_id: str = QUERY_ID
 ) -> tuple[tuple[QueryResult, ...], tuple[Reason, ...]]:
     """Return query observations only; no Semgrep lookup or per-finding verdict."""
     try:
@@ -188,7 +190,7 @@ def normalize_sarif(
                 sink: SourceLocation | None = None
                 try:
                     result = obj(raw_result)
-                    _check_rule(result, driver)
+                    _check_rule(result, driver, query_id)
                     sink = _location(array(result.get("locations"))[0], run, source_root, file_map)
                     for flow_index, flow in enumerate(array(result.get("codeFlows", []))):
                         for thread_index, thread in enumerate(array(obj(flow).get("threadFlows"))):

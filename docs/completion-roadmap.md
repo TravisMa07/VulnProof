@@ -24,8 +24,9 @@ to wait for each merge before beginning the next item.
 | 8. Release hardening and v1.0 | Combined benchmark, compatibility, installation, documentation, reports and release artifacts. | Fresh-install reproduction; three fresh confirmations for advertised vulnerable benchmark cases; zero patched confirmations; execution/cleanup checks pass. |
 
 Path traversal plus the nine additional capabilities forms the ten-capability target.
-Only path traversal currently has an installed validator. These rows do not register
-unsupported future capabilities as implemented product behavior.
+Path traversal and the three bounded injection behaviors now have installed validators.
+PR 3 support boundaries and reproduction are in [injection validation](injection-validation.md).
+The remaining rows describe planned capabilities, not implemented coverage.
 
 Test independent applications from PR 2 onward; PR 7 consolidates evidence. Keep
 application-specific facts in configuration. Add a framework adapter only when a

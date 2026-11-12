@@ -2,7 +2,7 @@
 
 import re
 from pathlib import PurePosixPath
-from typing import Annotated, Literal, Self
+from typing import Annotated, Any, Literal, Self
 
 from pydantic import Field, field_validator, model_validator
 
@@ -177,6 +177,7 @@ class HttpObservation(Contract):
 
 
 class ObserverResult(Contract):
+    validation: dict[str, Any] | None = None
     outcome: Literal["completed", "failed"]
     reason: str
     ready: bool

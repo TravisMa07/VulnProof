@@ -179,7 +179,7 @@ VulnProof/
 ├── src/vulnproof/          # CLI, ingestion, source capture, evidence contracts, planned components
 ├── schemas/                # Versioned evidence schema
 ├── codeql/queries/         # Planned initial static analysis queries
-├── fixtures/               # Reviewed CWE-22 pair and planned fixtures
+├── fixtures/               # Reviewed traversal and injection regression applications
 ├── templates/              # Planned report templates
 ├── tests/                  # Automated checks and planned test categories
 └── .github/workflows/      # Development checks
@@ -201,8 +201,13 @@ complete finding inventory. E3c, the cross-repository demonstration, is the next
 The [eight-PR completion roadmap](docs/completion-roadmap.md) defines the finite v1.0
 target. [Shared investigation contracts](docs/shared-investigation.md) separate
 application identity, invocation, installed capabilities, and class-specific evidence.
-Only CWE-22 validation is currently implemented; other capability targets are planned.
+CWE-22 and the bounded command, SQLite query and Jinja expression validators are
+implemented. The remaining capability targets are planned.
 
 [Application onboarding](docs/application-onboarding.md) adds passive setup inspection,
 explicit preparation, and separately authorized HTTP/harness exercise with isolated
 observation. These lifecycle records are not vulnerability confirmations.
+
+The bounded command, SQLite query and Jinja expression validation workflow is described
+in [injection validation](docs/injection-validation.md), including support limits and
+vulnerable/patched benchmark reproduction.

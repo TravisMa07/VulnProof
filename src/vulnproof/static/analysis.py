@@ -9,7 +9,7 @@ from importlib.resources import files
 from pathlib import Path
 from uuid import uuid4
 
-from vulnproof.investigation.capabilities import PATH_QUERY
+from vulnproof.investigation.capabilities import PATH_QUERY, QUERIES, QuerySpec
 from vulnproof.models import Artifact, Reason, SourceBinding, ToolIdentity
 from vulnproof.provenance import CaptureFailure, verify_capture
 from vulnproof.provenance.filesystem import open_root, scan_tree
@@ -74,10 +74,17 @@ def _publish_report(path: Path, report: AnalysisDocument) -> None:
 
 
 def check_bundle(
-    bundle: Path, output: Path, env: dict[str, str], records: list[CommandRecord]
+    bundle: Path,
+    output: Path,
+    env: dict[str, str],
+    records: list[CommandRecord],
+    query_spec: QuerySpec | None = None,
 ) -> ToolIdentity:
+    query_spec = PATH_QUERY if query_spec is None else query_spec
     executable = bundle / "codeql"
-    query = bundle / PATH_QUERY.relative_path
+    if QUERIES.get(query_spec.id) != query_spec:
+        raise AnalysisFailure("unknown_query", "Only installed query policy is accepted")
+    query = bundle / query_spec.relative_path
     if not executable.is_file():
         raise AnalysisFailure(
             "codeql_missing",
@@ -97,7 +104,7 @@ def check_bundle(
         raise AnalysisFailure("codeql_version", "Expected prepared CodeQL 2.27.3")
     if (
         not query.is_file()
-        or hashlib.sha256(query.read_bytes()).hexdigest() != PATH_QUERY.sha256
+        or hashlib.sha256(query.read_bytes()).hexdigest() != query_spec.sha256
         or re.search(
             r"^version:\s*1\.8\.13\s*$",
             (query.parents[2] / "qlpack.yml").read_text(),
@@ -115,10 +122,17 @@ def check_bundle(
 
 
 def query_source(
-    bundle: Path, output: Path, env: dict[str, str], records: list[CommandRecord]
+    bundle: Path,
+    output: Path,
+    env: dict[str, str],
+    records: list[CommandRecord],
+    query_spec: QuerySpec | None = None,
 ) -> Path:
+    query_spec = PATH_QUERY if query_spec is None else query_spec
     executable = bundle / "codeql"
-    query = bundle / PATH_QUERY.relative_path
+    if QUERIES.get(query_spec.id) != query_spec:
+        raise AnalysisFailure("unknown_query", "Only installed query policy is accepted")
+    query = bundle / query_spec.relative_path
     work = output / "work"
     source = work / "source"
     sarif = output / "diagnostics/raw.sarif"
