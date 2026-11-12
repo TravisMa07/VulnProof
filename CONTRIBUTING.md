@@ -167,3 +167,7 @@ dependency updates. A summary or passing checks do not replace this review.
 
 Keep PRs small enough for this process to be practical. Do not start the next
 roadmap item while the current change is awaiting review or merge authorization.
+
+The application-onboarding stage uses separately authorized preparation and execution.
+See [application onboarding](docs/application-onboarding.md) for profile limits,
+network policy, synthetic state, pinned upstream reproduction and opt-in tests.

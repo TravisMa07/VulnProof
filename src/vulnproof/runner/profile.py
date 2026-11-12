@@ -115,6 +115,7 @@ def verify_container(
     *,
     command: list[str] | None = None,
     workdir: str = "/fixture",
+    network: str = "none",
 ) -> None:
     host, config = value["HostConfig"], value["Config"]
     checks = [
@@ -127,7 +128,7 @@ def verify_container(
         not config.get("Volumes"),
         config.get("Healthcheck", {}).get("Test") == ["NONE"],
         host["ReadonlyRootfs"] is True,
-        host["NetworkMode"] == "none",
+        host["NetworkMode"] == network,
         not host.get("PortBindings"),
         not host.get("PublishAllPorts"),
         host["Privileged"] is False,
