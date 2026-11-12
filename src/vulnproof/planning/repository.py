@@ -14,6 +14,7 @@ from vulnproof.artifacts import read_local
 from vulnproof.correlation.engine import MAX_DOCUMENT_BYTES
 from vulnproof.correlation.repository import digest, document
 from vulnproof.discovery.repository import discover
+from vulnproof.investigation.contracts import FixedParameter as FixedQuery
 from vulnproof.models.common import Contract, RelativePath, Sha256, relative_path
 from vulnproof.provenance.models import fingerprint
 from vulnproof.runner.control_driver import request_target
@@ -23,11 +24,6 @@ from .engine import PlanningFailure, planning_catalog
 
 Name = Annotated[str, Field(min_length=1, max_length=256)]
 FIELDS = ("entry_point", "method", "route", "query_key")
-
-
-class FixedQuery(Contract):
-    name: Name
-    value: str = Field(max_length=4096)
 
 
 class Endpoint(Contract):

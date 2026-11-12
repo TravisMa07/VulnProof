@@ -1,9 +1,11 @@
 # Contributing to VulnProof
 
 VulnProof is being built one reviewable roadmap item at a time. Discuss the design and
-acceptance criteria before implementation. Complete review and obtain the project
-owner's explicit merge authorization before starting the next item. Follow the
-[active expansion roadmap](docs/roadmap.md#active-expansion) for the agreed PR sequence.
+acceptance criteria before implementation. Present each complete diff for owner
+review before committing. When merges are
+deferred, stack subsequent feature branches on their prerequisites; only the owner
+authorizes merging. Follow the
+[active completion roadmap](docs/completion-roadmap.md) for the agreed PR sequence.
 Repository intake and [checkout scanning](docs/repository-scan.md) feed the same inventory. Use the existing CWE-22 fixture pair
 as regression coverage as support expands to unfamiliar checkouts.
 

@@ -197,3 +197,8 @@ explicit authorization. E3a adds separately authorized repository validation and
 [Repository validation](docs/repository-validation.md) now provides E3a bounded CWE-22 attempts and JSON
 classifications. [Repository reports](docs/repository-reports.md) provide offline HTML flows and a
 complete finding inventory. E3c, the cross-repository demonstration, is the next step.
+
+The [eight-PR completion roadmap](docs/completion-roadmap.md) defines the finite v1.0
+target. [Shared investigation contracts](docs/shared-investigation.md) separate
+application identity, invocation, installed capabilities, and class-specific evidence.
+Only CWE-22 validation is currently implemented; other capability targets are planned.

@@ -1,18 +1,19 @@
 """Classify one repository occurrence using retained plans and bounded runtime observations."""
 
 import json
-import os
 from pathlib import Path
 from typing import Any, Literal
-from urllib.parse import urlencode
 
+from vulnproof.investigation.assessment import ValidationEvidence, assess
+from vulnproof.investigation.contracts import Classification, invocation_from_request
 from vulnproof.models.common import Contract, Sha256
 from vulnproof.planning.repository import plan_repository, unique_fields
-from vulnproof.runner.control_driver import request_target
 from vulnproof.runner.controls import RepositoryControlAttempt, check_repository, read
 from vulnproof.runner.docker import RunnerFailure
 from vulnproof.runner.engine import publish
 from vulnproof.runner.repository import sha
+
+from .registry import VALIDATORS
 
 
 class RepositoryValidation(Contract):
@@ -21,7 +22,7 @@ class RepositoryValidation(Contract):
     finding_id: str
     source_fingerprint: Sha256
     plan_sha256: Sha256
-    classification: Literal["confirmed", "inconclusive", "unsupported", "failed"]
+    classification: Classification
     reason: str
     finding: dict[str, Any]
     scanner_source_state: Literal["controlled_snapshot", "unverified"]
@@ -29,70 +30,35 @@ class RepositoryValidation(Contract):
 
 
 def classify(
-    attempt: RepositoryControlAttempt,
-) -> tuple[Literal["confirmed", "inconclusive", "unsupported", "failed"], str]:
-    import re
-
+    attempt: RepositoryControlAttempt, validator_id: str | None = None
+) -> tuple[Classification, str]:
     if (
-        attempt.policy_verified
-        and attempt.cleanup == "verified_absent"
-        and attempt.driver
-        and attempt.driver.reason == "unsupported_application"
+        validator_id is not None
+        and attempt.validator_id is not None
+        and validator_id != attempt.validator_id
     ):
-        return "unsupported", "unsupported_application"
-    if not attempt.succeeded or not attempt.driver:
-        return "failed", "control_execution_or_cleanup_failed"
-    observed = attempt.driver.validation
-    if not observed or observed.get("outcome") != "completed":
-        return "failed", str(
-            observed.get("reason", "validation_missing")
-        ) if observed else "validation_missing"
-    marker, path, root = (observed.get(k) for k in ("canary_body", "canary_path", "download_root"))
-    probes = observed.get("probes")
-    if (
-        observed.get("initially_absent") is not True
-        or not isinstance(marker, str)
-        or re.fullmatch(r"VulnProof:[0-9a-f]{64}\n", marker) is None
-        or not isinstance(path, str)
-        or re.fullmatch(r"/tmp/vulnproof/[0-9a-f]{32}\.txt", path) is None
-        or not isinstance(root, str)
-        or not root.startswith("/")
-        or Path(path).is_relative_to(root)
-        or not isinstance(probes, list)
-        or len(probes) != 2
-        or [p.get("kind") for p in probes if isinstance(p, dict)]
-        != ["parent_traversal", "absolute_path"]
-    ):
+        return "failed", "validator_identity_mismatch"
+    selected_validator = validator_id or attempt.validator_id or "cwe22-file-read-v1"
+    invocation_request = {
+        **attempt.request,
+        "query_key": attempt.request.get("query_key", "unresolved"),
+    }
+    try:
+        invocation = invocation_from_request(invocation_request, attempt.http_request)
+        evidence = ValidationEvidence(
+            execution=attempt.execution,
+            policy_verified=attempt.policy_verified,
+            cleanup=attempt.cleanup,
+            control_valid=bool(attempt.driver and attempt.driver.control == "passed"),
+            scanner_source_state=attempt.scanner_source_state,
+            invocation=invocation,
+            observations=attempt.driver.validation if attempt.driver else None,
+            operational_reason=attempt.driver.reason if attempt.driver else None,
+        )
+        decision = assess(selected_validator, evidence, VALIDATORS)
+        return decision.classification, decision.reason
+    except ValueError, KeyError, TypeError:
         return "failed", "invalid_validation_observation"
-    expected_targets = [
-        request_target(attempt.http_request, value)
-        if attempt.http_request is not None
-        else attempt.request["route"] + "?" + urlencode({attempt.request["query_key"]: value})
-        for value in (os.path.relpath(path, root), path)
-    ]
-    if [p.get("request_target") for p in probes] != expected_targets:
-        return "failed", "probe_request_mismatch"
-    for probe in probes:
-        if (
-            probe.get("truncated") is not False
-            or type(probe.get("status")) is not int
-            or not 100 <= probe["status"] <= 599
-            or type(probe.get("body_bytes")) is not int
-            or not 0 <= probe["body_bytes"] <= 65536
-            or not isinstance(probe.get("body_sha256"), str)
-            or re.fullmatch(r"[0-9a-f]{64}", probe["body_sha256"]) is None
-        ):
-            return "failed", "invalid_validation_observation"
-    if attempt.scanner_source_state != "controlled_snapshot":
-        return "inconclusive", "scanner_source_unverified"
-    if any(
-        p["status"] == 200
-        and p["body_sha256"] == sha(marker.encode())
-        and p["body_bytes"] == len(marker.encode())
-        for p in probes
-    ):
-        return "confirmed", "fresh_canary_disclosed"
-    return "inconclusive", "canary_not_disclosed"
 
 
 def validate_repository(
@@ -142,11 +108,13 @@ def validate_repository(
             "invalid_validation_input", "Invalid retained evidence or output"
         ) from exc
     attempt = None
-    classification: Literal["confirmed", "inconclusive", "unsupported", "failed"] = "inconclusive"
+    classification: Classification = "inconclusive"
     reason = "planning_prerequisites_missing"
     interrupted = False
     try:
-        if row["status"] == "draft":
+        if row["status"] == "draft" and row.get("template_id") not in VALIDATORS:
+            classification, reason = "unsupported", "unsupported_validator"
+        elif row["status"] == "draft":
             attempt = check_repository(
                 scan=scan,
                 investigation=investigation,
@@ -161,7 +129,7 @@ def validate_repository(
                 authorize_execution=False,
                 authorize_validation=True,
             )
-            classification, reason = classify(attempt)
+            classification, reason = classify(attempt, row["template_id"])
         elif row["correlation_status"] == "unsupported_mapping" or "unsupported_method" in row.get(
             "reasons", []
         ):

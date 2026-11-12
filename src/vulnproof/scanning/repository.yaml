@@ -43,3 +43,65 @@ rules:
       - patterns:
           - pattern: open($PATH, ...)
           - focus-metavariable: $PATH
+
+  - id: vulnproof.repository.send-file
+    languages: [python]
+    mode: taint
+    message: Request input reaches the file-serving path argument.
+    severity: WARNING
+    pattern-sources:
+      - pattern: request.args.get(...)
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  @$APP.get($ROUTE)
+                  def $FUNC(...):
+                    ...
+              - pattern-inside: |
+                  @$APP.route($ROUTE, ...)
+                  def $FUNC(...):
+                    ...
+          - metavariable-regex:
+              metavariable: $ROUTE
+              regex: .*<path:.*
+          - pattern: |
+              def $FUNC(..., $PARAM, ...):
+                ...
+          - focus-metavariable: $PARAM
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: flask.send_file($PATH, ...)
+              - pattern: flask.send_file(path_or_file=$PATH, ...)
+          - focus-metavariable: $PATH
+
+  - id: vulnproof.repository.send-from-directory
+    languages: [python]
+    mode: taint
+    message: Request input reaches the file-serving path argument.
+    severity: WARNING
+    pattern-sources:
+      - pattern: request.args.get(...)
+      - patterns:
+          - pattern-either:
+              - pattern-inside: |
+                  @$APP.get($ROUTE)
+                  def $FUNC(...):
+                    ...
+              - pattern-inside: |
+                  @$APP.route($ROUTE, ...)
+                  def $FUNC(...):
+                    ...
+          - metavariable-regex:
+              metavariable: $ROUTE
+              regex: .*<path:.*
+          - pattern: |
+              def $FUNC(..., $PARAM, ...):
+                ...
+          - focus-metavariable: $PARAM
+    pattern-sinks:
+      - patterns:
+          - pattern-either:
+              - pattern: flask.send_from_directory($DIR, $PATH, ...)
+              - pattern: flask.send_from_directory(..., path=$PATH, ...)
+          - focus-metavariable: $PATH

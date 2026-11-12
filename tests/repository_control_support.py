@@ -33,6 +33,13 @@ def control_inputs(
     (target.parent / "__init__.py").touch()
     (target.parent / "helper.py").write_text("suffix = b''\n")
     expression = "open(name, 'rb').read() + suffix"
+    if mode in ("send_file", "send_directory", "send_file_keyword", "send_directory_keyword"):
+        expression = {
+            "send_file": "deliver(name)",
+            "send_file_keyword": "deliver(path_or_file=name)",
+            "send_directory": "from_dir('/application', name)",
+            "send_directory_keyword": "from_dir(directory='/application', path=name)",
+        }[mode]
     if mode == "redirect":
         expression += ", 302, {'Location': '/must-not-follow'}"
     source = (
@@ -40,6 +47,11 @@ def control_inputs(
         "service = Flask(__name__)\n@service.get('/export')\ndef export():\n"
         "    name = request.args.get('document')\n    return " + expression + "\n"
     )
+    if mode in ("send_file", "send_directory", "send_file_keyword", "send_directory_keyword"):
+        source = source.replace(
+            "from flask import Flask, request",
+            "from flask import Flask, request, send_file as deliver, send_from_directory as from_dir",
+        )
     if mode in ("route", "route_patched"):
         source = (
             source.replace(
@@ -76,6 +88,9 @@ def control_inputs(
     )
     body = b"manual\n" if mode != "large" else b"x" * 65537
     (checkout / "manual.txt").write_bytes(body)
+    if mode in ("send_file", "send_file_keyword"):
+        (target.parent / "manual.txt").write_bytes(body)
+    sink_start = source.splitlines()[6].index("name") + 1
     scanner = {
         "version": "2.1.0",
         "runs": [
@@ -85,9 +100,18 @@ def control_inputs(
                     {
                         "ruleId": "vulnproof.repository.route-file-read"
                         if mode in ("route", "route_patched")
-                        else RULE,
+                        else {
+                            "send_file": "vulnproof.repository.send-file",
+                            "send_directory": "vulnproof.repository.send-from-directory",
+                            "send_file_keyword": "vulnproof.repository.send-file",
+                            "send_directory_keyword": "vulnproof.repository.send-from-directory",
+                        }.get(mode, RULE),
                         "message": {"text": "Synthetic control test finding"},
-                        "locations": [location(7, uri=module, start_column=17, end_column=21)],
+                        "locations": [
+                            location(
+                                7, uri=module, start_column=sink_start, end_column=sink_start + 4
+                            )
+                        ],
                     }
                 ],
             }
@@ -109,7 +133,11 @@ def control_inputs(
                 "results": [
                     {
                         "ruleId": "py/path-injection",
-                        "locations": [location(7, uri=module, start_column=17, end_column=21)],
+                        "locations": [
+                            location(
+                                7, uri=module, start_column=sink_start, end_column=sink_start + 4
+                            )
+                        ],
                         "codeFlows": [
                             {
                                 "threadFlows": [
@@ -122,7 +150,10 @@ def control_inputs(
                                             },
                                             {
                                                 "location": location(
-                                                    7, uri=module, start_column=17, end_column=21
+                                                    7,
+                                                    uri=module,
+                                                    start_column=sink_start,
+                                                    end_column=sink_start + 4,
                                                 )
                                             },
                                         ]
@@ -196,6 +227,10 @@ def control_inputs(
             }
         )
     )
+    if mode in ("send_file", "send_file_keyword"):
+        settings = json.loads(config.read_bytes())
+        settings["endpoints"][0]["download_root"] = "/application/" + str(Path(module).parent)
+        config.write_text(json.dumps(settings))
     if mode in ("route", "route_patched"):
         settings = json.loads(config.read_bytes())
         settings["schema_version"] = "1.2"

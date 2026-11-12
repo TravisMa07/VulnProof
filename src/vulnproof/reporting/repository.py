@@ -255,6 +255,10 @@ def prepare_repository_report(
                     notes.append("Retained runtime attempt differs from the embedded attempt.")
                 if selected:
                     row = selected[0]
+                    if attempt.validator_id is not None and attempt.validator_id != row.get(
+                        "template_id"
+                    ):
+                        notes.append("Validator identity differs from the plan.")
                     if attempt.http_request != row.get("http_request"):
                         notes.append("Request profile differs from the plan.")
                     candidate = row.get("candidates", {}).get(attempt.candidate_result_id)

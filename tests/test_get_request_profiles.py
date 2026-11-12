@@ -57,6 +57,7 @@ def test_edited_control_is_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     args, _ = setup(tmp_path, monkeypatch)
     attempt = check_repository(**args)
     data = attempt.model_dump(mode="json")
+    data.pop("context", None)
     data["schema_version"] = "1.1"
     data["http_request"] = dict(
         schema_version="1.0",
@@ -69,4 +70,5 @@ def test_edited_control_is_rejected(tmp_path: Path, monkeypatch: pytest.MonkeyPa
         RepositoryControlAttempt.model_validate_json(json.dumps(data))
     data.pop("http_request")
     data["schema_version"] = "1.0"
-    assert RepositoryControlAttempt.model_validate_json(json.dumps(data)) == attempt
+    restored = RepositoryControlAttempt.model_validate_json(json.dumps(data))
+    assert restored.request == attempt.request and restored.context is None

@@ -54,6 +54,10 @@ def test_real_repository_validation(tmp_path: Path, mode: str, reason: str) -> N
         ("patched", "inconclusive"),
         ("route", "confirmed"),
         ("route_patched", "inconclusive"),
+        ("send_file", "confirmed"),
+        ("send_file_keyword", "confirmed"),
+        ("send_directory", "inconclusive"),
+        ("send_directory_keyword", "inconclusive"),
     ],
 )
 def test_real_scanner_to_validation(tmp_path: Path, mode: str, expected: str) -> None:
@@ -95,6 +99,8 @@ def test_real_scanner_to_validation(tmp_path: Path, mode: str, expected: str) ->
         )
         == 0
     )
+    if mode.startswith("send_"):
+        assert json.loads((scan / "inventory.json").read_bytes())["result_count"] == 1
     args.update(scan=scan, investigation=investigation)
     args["correlation"].write_text(correlate_repository(scan, investigation))
     args["discovery"].write_text(discover(scan, investigation, args["correlation"]))
@@ -103,7 +109,10 @@ def test_real_scanner_to_validation(tmp_path: Path, mode: str, expected: str) ->
     )
     plan = json.loads(args["plan"].read_bytes())
     drafts = [r for r in plan["findings"] if r["status"] == "draft"]
-    if mode == "route_patched" and not drafts:
+    if (
+        mode in ("route_patched", "send_directory", "send_directory_keyword", "send_file_keyword")
+        and not drafts
+    ):
         assert all(r["status"] == "blocked" for r in plan["findings"])
         assert json.loads((investigation / "investigation.json").read_bytes())["results"] == []
         return  # No static path: do not fabricate one to execute this finding.
@@ -163,7 +172,7 @@ def test_real_fixed_query_validation(tmp_path: Path) -> None:
     args.pop("authorize_execution")
     result = validate_repository(**args, authorize_validation=True)
     assert result.reason == "scanner_source_unverified"
-    assert result.attempt and result.attempt.schema_version == "1.1"
+    assert result.attempt and result.attempt.schema_version == "1.2"
     assert result.attempt.cleanup == "verified_absent" and result.attempt.policy_verified
     assert result.attempt.driver and result.attempt.driver.validation
     assert result.attempt.driver.control == "passed"
@@ -221,3 +230,26 @@ def test_route_runtime_observations(tmp_path: Path, mode: str) -> None:
     else:
         assert observed["probes"][0]["status"] == 200
     assert result.classification == "inconclusive"  # Authored static evidence remains unverified.
+
+
+@pytest.mark.parametrize(
+    "mode", ["send_file", "send_file_keyword", "send_directory", "send_directory_keyword"]
+)
+def test_file_serving_runtime(tmp_path: Path, mode: str) -> None:
+    args = prepared_args(tmp_path, "exports/web.py", mode)
+    args.pop("authorize_execution")
+    result = validate_repository(**args, authorize_validation=True)
+    assert result.classification == "inconclusive"
+    assert result.attempt and result.attempt.cleanup == "verified_absent"
+    assert result.attempt.policy_verified and result.attempt.driver
+    assert result.attempt.driver.control == "passed"
+    observed = result.attempt.driver.validation
+    assert observed and observed["outcome"] == "completed"
+    if mode in ("send_directory", "send_directory_keyword"):
+        assert all(p["status"] == 404 for p in observed["probes"])
+    else:
+        from vulnproof.runner.repository import sha
+
+        assert all(
+            p["body_sha256"] == sha(observed["canary_body"].encode()) for p in observed["probes"]
+        )
