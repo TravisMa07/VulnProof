@@ -44,3 +44,7 @@ The support matrix must list tested behaviors, execution ecosystems and scanner/
 boundaries. Publish stage denominators: findings ingested, mappings supported,
 paths correlated, applications runnable, tests completed and classifications.
 Curated regression applications are not proof of broad production-repository support.
+
+PR 2 implementation and reproduction details are in [application onboarding](application-onboarding.md).
+Its upstream example controls establish onboarding evidence, not the independent
+vulnerability demonstrations required by PR 7.

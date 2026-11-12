@@ -310,3 +310,25 @@ jobs:
           VULNPROOF_CONTROL_WHEELHOUSE: .cache/repository-control-wheels
           VULNPROOF_CONTROL_PLATFORM: linux/amd64
         run: uv run --locked pytest tests/integration/test_repository_validation_docker.py -q
+
+  application-onboarding:
+    name: Application onboarding and isolated observation
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
+        with:
+          version: "0.13.6"
+          enable-cache: false
+      - name: Prepare locked test environment
+        run: |
+          uv python install
+          uv sync --locked
+      - name: Exercise isolated application onboarding
+        env:
+          VULNPROOF_CONTROL_DOCKER_SOCKET: /var/run/docker.sock
+        run: uv run --locked pytest tests/integration/test_onboarding_docker.py -q

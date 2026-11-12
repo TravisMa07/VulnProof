@@ -202,3 +202,7 @@ The [eight-PR completion roadmap](docs/completion-roadmap.md) defines the finite
 target. [Shared investigation contracts](docs/shared-investigation.md) separate
 application identity, invocation, installed capabilities, and class-specific evidence.
 Only CWE-22 validation is currently implemented; other capability targets are planned.
+
+[Application onboarding](docs/application-onboarding.md) adds passive setup inspection,
+explicit preparation, and separately authorized HTTP/harness exercise with isolated
+observation. These lifecycle records are not vulnerability confirmations.

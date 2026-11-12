@@ -18,6 +18,9 @@ from .discovery.repository import discover
 from .ingest import ImportFailure, ingest_sarif
 from .ingest.sarif import MAX_INPUT_BYTES
 from .intake import inventory
+from .onboarding.planning import inspect_application
+from .onboarding.preparation import prepare_application
+from .onboarding.runtime import exercise_application
 from .planning import PlanningFailure, create_plans
 from .planning.repository import plan_repository
 from .provenance import CaptureFailure, capture_source, verify_capture
@@ -239,8 +242,81 @@ def main(argv: Sequence[str] | None = None) -> int:
         repository_report.add_argument("--" + flag, type=Path, required=True)
     repository_report.add_argument("--config", type=Path)
     repository_report.add_argument("--validation", type=Path, action="append", default=[])
+    for name in ("inspect-application", "prepare-application", "exercise-application"):
+        application_parser = commands.add_parser(
+            name, help="Inspect, prepare, or exercise a source-bound application"
+        )
+        for flag in ("scan", "output"):
+            application_parser.add_argument("--" + flag, type=Path, required=True)
+        application_parser.add_argument(
+            "--config", type=Path, required=name != "inspect-application"
+        )
+        if name != "inspect-application":
+            for flag in ("plan", "docker-socket"):
+                application_parser.add_argument("--" + flag, type=Path, required=True)
+        if name == "prepare-application":
+            application_parser.add_argument("--wheelhouse", type=Path, required=True)
+            application_parser.add_argument("--authorize-preparation", action="store_true")
+        if name == "exercise-application":
+            application_parser.add_argument("--preparation", type=Path, required=True)
+            application_parser.add_argument("--authorize-execution", action="store_true")
     args = parser.parse_args(argv)
     try:
+        if args.command == "inspect-application":
+            if args.output.resolve().is_relative_to(args.scan.resolve()):
+                raise RunnerFailure(
+                    "invalid_output", "Inspection output must be outside captured evidence"
+                )
+            application_plan = inspect_application(args.scan, args.config)
+            _publish(args.output, application_plan.model_dump_json(indent=2) + "\n")
+            print(
+                json.dumps(
+                    {
+                        "gaps": application_plan.gaps,
+                        "configured": application_plan.application is not None,
+                    }
+                )
+            )
+            return 0
+        if args.command == "prepare-application":
+            application_image = prepare_application(
+                scan=args.scan,
+                plan=args.plan,
+                config=args.config,
+                wheelhouse=args.wheelhouse,
+                socket=args.docker_socket,
+                output=args.output,
+                authorize_preparation=args.authorize_preparation,
+            )
+            print(
+                json.dumps(
+                    {
+                        "image": application_image.app_image,
+                        "observer": application_image.observer_image,
+                    }
+                )
+            )
+            return 0
+        if args.command == "exercise-application":
+            application_attempt = exercise_application(
+                scan=args.scan,
+                plan=args.plan,
+                config=args.config,
+                preparation=args.preparation,
+                socket=args.docker_socket,
+                output=args.output,
+                authorize_execution=args.authorize_execution,
+            )
+            print(
+                json.dumps(
+                    {
+                        "outcome": application_attempt.outcome,
+                        "reason": application_attempt.reason,
+                        "evidence_level": application_attempt.evidence_level,
+                    }
+                )
+            )
+            return 0 if application_attempt.outcome == "completed" else 1
         if args.command == "report-repository":
             repository_report_result = write_repository_report(
                 scan=args.scan,
@@ -641,6 +717,12 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"{exc.code}: {exc}", file=sys.stderr)
         return 2
     except KeyboardInterrupt:
+        if args.command in ("exercise-application", "prepare-application"):
+            print(
+                "application_interrupted: See retained diagnostics and resource reservation",
+                file=sys.stderr,
+            )
+            return 130
         if args.command == "validate-repository":
             print("validation_interrupted: Cleanup attempted; see retained result", file=sys.stderr)
             return 130
